@@ -7,16 +7,22 @@
 
 ## 下载
 
-产物发布在 **Releases** 页面（安装版 / 便携版 / 单文件版三个文件，任选其一）。
+产物发布在 **Releases** 页面，三个文件任选其一：
+
+| 文件 | 用途 |
+|---|---|
+| `432hz-player-<版本>-setup.exe` | **推荐**：安装版（桌面应用，独立窗口 + 托盘常驻） |
+| `432hz-player-<版本>-portable.exe` | 免安装便携版 |
+| `432hz-player-standalone.exe` | 单文件版（自带运行时；需与 `tools\` 目录放一起） |
 
 ### 下载慢？
 
 GitHub 直连在大陆常常只有几十 KB/s。可以在原始链接**前面拼接**一个镜像前缀来加速：
 
 ```text
-https://ghproxy.net/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432Hz%20Player-1.1.0-x64.exe
-https://ghfast.top/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432Hz%20Player-1.1.0-x64.exe
-https://gh-proxy.com/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432Hz%20Player-1.1.0-x64.exe
+https://ghproxy.net/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432hz-player-1.1.0-setup.exe
+https://ghfast.top/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432hz-player-1.1.0-setup.exe
+https://gh-proxy.com/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432hz-player-1.1.0-setup.exe
 ```
 
 | 镜像 | 实测 |
@@ -37,13 +43,13 @@ https://gh-proxy.com/https://github.com/Listgone/432hz-player/releases/download/
 
 | 形态 | 文件 | 适合 | 说明 |
 |---|---|---|---|
-| **桌面版（推荐）** | `release\432Hz Player-1.1.0-x64.exe` | 分发给别人 / 长期使用 | 安装包（可自选目录、建桌面与开始菜单快捷方式）。Electron 外壳：独立应用窗口、托盘常驻、单实例、关闭窗口后音频继续 |
-| | `release\432Hz Player-1.1.0-portable.exe` | 免安装试用 | 便携版，双击即跑，不写注册表 |
-| **单文件版** | `432Hz播放器.exe`（88 MB） | 最省事 / 拷来就用 | 自带 Node 运行时的单文件程序，**无控制台窗口**；界面由浏览器应用窗口承载 |
+| **桌面版（推荐）** | `release\432hz-player-1.1.0-setup.exe` | 分发给别人 / 长期使用 | 安装包（可自选目录、建桌面与开始菜单快捷方式）。Electron 外壳：独立应用窗口、托盘常驻、单实例、关闭窗口后音频继续 |
+| | `release\432hz-player-1.1.0-portable.exe` | 免安装试用 | 便携版，双击即跑，不写注册表 |
+| **单文件版** | `432hz-player-standalone.exe`（88 MB） | 最省事 / 拷来就用 | 自带 Node 运行时的单文件程序，**无控制台窗口**；界面由浏览器应用窗口承载 |
 
 三者功能与界面完全一致，共享同一份代码（`server.mjs` + `web/`），也共享同一份配置与日志。
 
-**最小可分发集合（单文件版）**：`432Hz播放器.exe` + `tools\AudioEndpoint.exe` + `tools\AudioRender.exe`（界面已内联在 exe 里）。
+**最小可分发集合（单文件版）**：`432hz-player-standalone.exe` + `tools\AudioEndpoint.exe` + `tools\AudioRender.exe`（界面已内联在 exe 里）。
 
 ---
 
@@ -175,7 +181,7 @@ npm start                    # 桌面版开发模式（Electron）
 npm run server               # 只跑本地服务（浏览器访问 http://127.0.0.1:4399）
 npm run build:tools          # 用系统自带 csc.exe 重新编译 tools/*.cs
 npm run dist                 # 生成安装包 + 便携版到 release/
-node scripts/build-exe.mjs   # 生成单文件版 432Hz播放器.exe（含 PE 子系统 3→2 无窗口补丁）
+node scripts/build-exe.mjs   # 生成单文件版 432hz-player-standalone.exe（含 PE 子系统 3→2 无窗口补丁）
 node scripts/check-ui.mjs    # 校验界面脚本语法与 i18n 键完整性
 node scripts/make-icon.mjs   # 重新生成图标
 npm run release              # 打包 + 发布到 GitHub Release（gh CLI 已登录）
@@ -216,7 +222,7 @@ node scripts/release.mjs --tag v1.2.0   # 指定 tag
 
 ```
 432hz-player/
-├── 432Hz播放器.exe          单文件版（构建产物，未入库）
+├── 432hz-player-standalone.exe   单文件版（构建产物，未入库）
 ├── release/                 安装包与便携版（构建产物，未入库）
 ├── desktop/                 Electron 主进程 + 预加载
 ├── server.mjs               音频服务：探测 / 引擎 / HTTP API / 日志

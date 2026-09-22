@@ -3,9 +3,9 @@
  * 一键打包 + 发布到 GitHub Release。
  *
  * 产物（三个）：
- *   1. 432Hz Player-<v>-x64.exe       Electron 安装包（推荐）
- *   2. 432Hz Player-<v>-portable.exe  Electron 便携版
- *   3. 432Hz播放器.exe                 单文件版（不含 Node 运行时依赖，需同目录 tools/）
+ *   1. 432hz-player-<v>-setup.exe      Electron 安装包（推荐）
+ *   2. 432hz-player-<v>-portable.exe  Electron 便携版
+ *   3. 432hz-player-standalone.exe     单文件版（需与同目录 tools/ 放一起）
  *
  * 用法：
  *   node scripts/release.mjs                 # 打包 + 创建/更新 Release（tag = v<version>）
@@ -40,9 +40,9 @@ const note = (...a) => console.log("[release]", ...a);
 
 const RELEASE_DIR = join(APP, "release");
 const artifacts = [
-	join(RELEASE_DIR, `432Hz Player-${version}-x64.exe`),
-	join(RELEASE_DIR, `432Hz Player-${version}-portable.exe`),
-	join(APP, "432Hz播放器.exe"),
+	join(RELEASE_DIR, `432hz-player-${version}-setup.exe`),
+	join(RELEASE_DIR, `432hz-player-${version}-portable.exe`),
+	join(APP, "432hz-player-standalone.exe"),
 ];
 
 if (!noBuild) {
@@ -102,9 +102,9 @@ const notes = [
 	"",
 	"| 文件 | 说明 |",
 	"|---|---|",
-	`| \`432Hz Player-${version}-x64.exe\` | **推荐**：安装版（Electron 桌面应用，独立窗口 + 托盘常驻） |`,
-	`| \`432Hz Player-${version}-portable.exe\` | 免安装便携版 |`,
-	"| `432Hz播放器.exe` | 单文件版（自带运行时，无需安装 Node；需与 `tools\\` 放一起） |",
+	`| \`432hz-player-${version}-setup.exe\` | **推荐**：安装版（Electron 桌面应用，独立窗口 + 托盘常驻） |`,
+	`| \`432hz-player-${version}-portable.exe\` | 免安装便携版 |`,
+	"| `432hz-player-standalone.exe` | 单文件版（自带运行时，无需安装 Node；需与 `tools\\` 放一起） |",
 	"",
 	"### 使用前提",
 	"",

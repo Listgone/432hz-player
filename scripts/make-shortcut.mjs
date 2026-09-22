@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const APP = resolve(HERE, "..");
-const EXE = join(APP, "432Hz播放器.exe");
+const EXE = join(APP, "432hz-player-standalone.exe");
 const ICO = join(APP, "assets", "app.ico");
 const NAME = "432Hz 播放器.lnk";
 

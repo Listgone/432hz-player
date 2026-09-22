@@ -6,7 +6,7 @@
  *   1. 把 server.mjs + web/index.html 合成一个 CommonJS 入口（UI 内联为字符串）
  *   2. 生成 sea-config.json
  *   3. `node --experimental-sea-config` 生成 blob
- *   4. 复制 node.exe → 432Hz播放器.exe，用 postject 注入 blob
+ *   4. 复制 node.exe → 432hz-player-standalone.exe，用 postject 注入 blob
  *   5. （可选）用 rcedit 写入图标与版本信息
  *
  * 用法：node scripts/build-exe.mjs
@@ -176,7 +176,7 @@ log("blob 生成:", (readFileSync(seaConfig.output).length / 1024).toFixed(1), "
 // 自定义图标由 Windows 快捷方式承载（快捷方式的 IconLocation 原生支持 .ico），
 // 见 scripts/make-shortcut.mjs。文件夹里的 exe 会显示 Node 默认图标，功能不受影响。
 // ---------------------------------------------------------------------------
-const target = join(APP, "432Hz播放器.exe");
+const target = join(APP, "432hz-player-standalone.exe");
 copyFileSync(NODE_EXE, target);
 
 const postjectArgs = [

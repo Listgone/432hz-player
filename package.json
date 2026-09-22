@@ -33,7 +33,7 @@
       "web/**/*",
       "tools/*.exe",
       "package.json",
-      "!432Hz播放器.exe",
+      "!432hz-player-standalone.exe",
       "!release/**",
       "!build/**",
       "!archive/**",
@@ -49,7 +49,7 @@
         { "target": "portable", "arch": ["x64"] }
       ],
       "icon": "assets/app.ico",
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "artifactName": "432hz-player-${version}-setup.${ext}",
       "requestedExecutionLevel": "asInvoker",
       "signAndEditExecutable": false
     },
@@ -65,7 +65,7 @@
       "deleteAppDataOnUninstall": false
     },
     "portable": {
-      "artifactName": "${productName}-${version}-portable.${ext}"
+      "artifactName": "432hz-player-${version}-portable.${ext}"
     }
   },
   "license": "MIT"
