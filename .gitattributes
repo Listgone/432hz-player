@@ -1,0 +1,22 @@
+# 统一换行：仓库内存 LF，检出时由 git 按平台处理，避免脚本在 Linux/CI 上因 CRLF 报错
+* text=auto eol=lf
+
+# 二进制文件不做任何换行转换
+*.exe binary
+*.ico binary
+*.png binary
+*.zip binary
+
+# 这些文件保持 LF，即使在某些平台上被编辑过
+*.mjs text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.cs text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+.npmrc text eol=lf
+.gitignore text eol=lf
+
+# 让 GitHub 语言统计更准确（可选）
+*.mjs linguist-language=JavaScript
