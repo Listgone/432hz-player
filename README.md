@@ -7,17 +7,21 @@
 
 ## 下载
 
-产物发布在 **Releases** 页面，三个文件任选其一：
+在 **Releases** 页面选一个：
 
-| 文件 | 用途 |
-|---|---|
-| `432hz-player-<版本>-setup.exe` | **推荐**：安装版（桌面应用，独立窗口 + 托盘常驻） |
-| `432hz-player-<版本>-portable.exe` | 免安装便携版 |
-| `432hz-player-standalone.exe` | 单文件版（自带运行时；需与 `tools\` 目录放一起） |
+| 文件 | 用途 | 大小 |
+|---|---|---|
+| `432hz-player-<版本>-setup.exe` | **推荐**：安装版（桌面应用，独立窗口 + 托盘常驻，自动建快捷方式） | ~73 MB |
+| `432hz-player-<版本>-portable.exe` | 免安装便携版，双击即跑 | ~73 MB |
+| `432hz-player-<版本>-standalone-win-x64.zip` | 单文件版**整包**（含 `tools/`，解压即用，自带运行时、不需要装 Node） | ~33 MB |
+| `432hz-player-standalone.exe` | 单文件版单个 exe（**必须与 `tools/` 同目录**，否则报缺少组件） | ~88 MB |
+| `SHA256SUMS.txt` | 各文件 SHA-256，下载后校验完整性 | — |
+
+校验：`certutil -hashfile <文件> SHA256`，与 `SHA256SUMS.txt` 对比。
 
 ### 下载慢？
 
-GitHub 直连在大陆常常只有几十 KB/s。可以在原始链接**前面拼接**一个镜像前缀来加速：
+在原始下载链接**前面拼接**镜像前缀即可加速，例如安装版：
 
 ```text
 https://ghproxy.net/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432hz-player-1.1.0-setup.exe
@@ -25,17 +29,19 @@ https://ghfast.top/https://github.com/Listgone/432hz-player/releases/download/v1
 https://gh-proxy.com/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432hz-player-1.1.0-setup.exe
 ```
 
-| 镜像 | 实测 |
+| 镜像 | 实测（HEAD） |
 |---|---|
-| `ghproxy.net` | HTTP 200，约 1.0 s |
-| `ghfast.top` | HTTP 200，约 1.2 s |
-| `gh-proxy.com` | HTTP 200，约 1.3 s |
+| `ghproxy.net` | 968 ms |
+| `ghfast.top` | 1030 ms |
+| `gh-proxy.com` | 887 ms |
+
+每次 `npm run release` 会重新探测这三个镜像并把结果写进 Release 说明；某个镜像失效就换另一个。
 
 其它方式：
 
 - **clone 加速**：`git clone https://ghfast.top/https://github.com/Listgone/432hz-player.git`
 - **源码 zip**：`https://ghproxy.net/https://github.com/Listgone/432hz-player/archive/refs/heads/main.zip`
-- 镜像为第三方服务，可能限速或下线；建议同时保留直连地址，或自建一层反代。
+- 镜像为第三方服务，可能限速或下线；长期分发建议自建一层反代，并保留直连地址兜底。
 
 ---
 
