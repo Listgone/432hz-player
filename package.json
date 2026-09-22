@@ -11,7 +11,10 @@
     "build:icon": "node scripts/make-icon.mjs",
     "build:win": "electron-builder --win nsis --x64",
     "build:portable": "electron-builder --win portable --x64",
-    "dist": "node scripts/make-icon.mjs && electron-builder --win nsis portable --x64"
+    "dist": "node scripts/make-icon.mjs && electron-builder --win nsis portable --x64",
+    "build:tools": "bash scripts/build-tools.sh",
+    "release": "node scripts/release.mjs",
+    "release:no-build": "node scripts/release.mjs --no-build"
   },
   "devDependencies": {
     "electron": "31.7.5",

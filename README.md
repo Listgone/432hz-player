@@ -3,6 +3,42 @@
 把电脑里正在播放的声音实时转成 **432Hz**（A4 440 → 432，−31.77 cent，**保时长**）后送到你的物理声卡。
 独立软件，双击图标即用；会自己把系统默认播放设备指向虚拟声卡并开始接管。
 
+**仓库**：<https://github.com/Listgone/432hz-player>（当前私有）
+
+---
+
+## 下载与加速
+
+产物发布在 **GitHub Releases**：<https://github.com/Listgone/432hz-player/releases>
+
+国内直连 GitHub 下载大文件常常只有几十 KB/s。以下第三方镜像可用（实测 1.2 秒内响应），
+把原始链接**直接拼在镜像前缀后面**即可：
+
+```text
+https://ghproxy.net/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432Hz%20Player-1.1.0-x64.exe
+https://ghfast.top/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432Hz%20Player-1.1.0-x64.exe
+https://gh-proxy.com/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432Hz%20Player-1.1.0-x64.exe
+```
+
+| 镜像 | 实测 | 备注 |
+|---|---|---|
+| `ghproxy.net` | HTTP 200，约 1.0 s | 稳定，最常用 |
+| `ghfast.top` | HTTP 200，约 1.2 s | 备用 |
+| `gh-proxy.com` | HTTP 200，约 1.3 s | 备用 |
+
+**重要**：第三方镜像**无法代理私有仓库**（它们无法携带你的登录凭据，会返回 404）。
+所以上面的加速链接**要等仓库转为公开（Public）之后才生效**；在此之前请直接 `git clone` /
+在 GitHub 网页下载（私有仓库的 Release 附件需要登录才能下）。
+
+其它加速方式：
+
+- **Git clone 加速**：`git clone https://ghfast.top/https://github.com/Listgone/432hz-player.git`
+- **只取源码 zip**：`https://ghproxy.net/https://github.com/Listgone/432hz-player/archive/refs/heads/main.zip`
+- **自己搭一层**（更稳、可控）：Cloudflare Workers 反代，或自建 `gh-proxy`；
+  建议长期对外分发时用自建，别把主链路压在公共镜像上。
+
+> 镜像为第三方服务，可能限速、限流或下线。分发时建议在 Release 说明里同时给出「直连 + 两个镜像」。
+
 ---
 
 ## 两种分发形态
@@ -142,26 +178,57 @@ WinRT `AudioPolicyConfig` vtable 不兼容）。`AudioRender.exe` 按**端点 ID
 ## 开发与构建
 
 ```bash
-npm i                 # 安装 electron / electron-builder
-npm start             # 桌面版开发模式（Electron）
-npm run server        # 只跑本地服务（浏览器访问 http://127.0.0.1:4399）
-npm run dist          # 生成安装包 + 便携版到 release/
+npm i                        # 安装 electron / electron-builder（.npmrc 已配国内镜像）
+npm start                    # 桌面版开发模式（Electron）
+npm run server               # 只跑本地服务（浏览器访问 http://127.0.0.1:4399）
+npm run build:tools          # 用系统自带 csc.exe 重新编译 tools/*.cs
+npm run dist                 # 生成安装包 + 便携版到 release/
 node scripts/build-exe.mjs   # 生成单文件版 432Hz播放器.exe（含 PE 子系统 3→2 无窗口补丁）
 node scripts/check-ui.mjs    # 校验界面脚本语法与 i18n 键完整性
 node scripts/make-icon.mjs   # 重新生成图标
+npm run release              # 打包 + 发布到 GitHub Release（gh CLI 已登录）
 ```
 
-> 构建 Electron 包若卡在下载工具链，设置镜像：
-> `ELECTRON_BUILDER_BINARIES_MIRROR=https://registry.npmmirror.com/-/binary/electron-builder-binaries/`
+### 镜像（国内必看）
+
+仓库自带 `.npmrc`，clone 后 `npm i` 就会走国内镜像，无需手动设环境变量：
+
+```ini
+registry=https://registry.npmmirror.com
+electron_mirror=https://registry.npmmirror.com/-/binary/electron/
+electron_builder_binaries_mirror=https://registry.npmmirror.com/-/binary/electron-builder-binaries/
+```
+
+若在 CI 或其它机器上打包，请显式导出（否则 electron-builder 会去 github.com 取工具链，国内大概率超时）：
+
+```bash
+export ELECTRON_BUILDER_BINARIES_MIRROR=https://registry.npmmirror.com/-/binary/electron-builder-binaries/
+export ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/
+export CSC_IDENTITY_AUTO_DISCOVERY=false   # 无代码签名证书时跳过签名
+```
 
 **注意**：改了 `web/index.html` 后必须重新 `node scripts/build-exe.mjs`，否则单文件版里仍是旧界面（Electron 版直接从 asar 读，无需额外步骤）。
+
+### 发布
+
+```bash
+npm run release                # 打包三件套并创建/更新 Release（tag = v<package.json version>）
+npm run release:no-build       # 只用现有产物发布
+node scripts/release.mjs --tag v1.2.0   # 指定 tag
+```
+
+发布脚本会：编译 C# 工具 → 生成图标 → 打 Electron 两个包 → 打单文件版 → `gh release create/upload`
+（已存在同名 Release 时用 `--clobber` 覆盖附件），并自动生成包含安装前提与校验信息的 Release 说明。
+
+> 仓库目前**私有**：Release 附件需要登录 GitHub 才能下载，第三方加速镜像也对私有内容无效。
+> 转公开后，README 里的加速链接即刻生效。
 
 ## 目录结构
 
 ```
 432hz-player/
-├── 432Hz播放器.exe          单文件版（构建产物）
-├── release/                 安装包与便携版（构建产物）
+├── 432Hz播放器.exe          单文件版（构建产物，未入库）
+├── release/                 安装包与便携版（构建产物，未入库）
 ├── desktop/                 Electron 主进程 + 预加载
 ├── server.mjs               音频服务：探测 / 引擎 / HTTP API / 日志
 ├── web/index.html           界面（原生 JS，中英双语）
@@ -169,7 +236,9 @@ node scripts/make-icon.mjs   # 重新生成图标
 │   ├── AudioEndpoint.exe/.cs  端点枚举、默认设备切换、峰值读取
 │   └── AudioRender.exe/.cs    WASAPI 显式端点渲染器（stdin 收 PCM）
 ├── assets/app.ico           应用图标
-└── scripts/                 构建与自检脚本
+├── scripts/                 构建 / 自检 / 发布脚本
+├── .npmrc                   国内镜像配置
+└── LICENSE                  MIT
 ```
 
 ---
@@ -180,7 +249,12 @@ node scripts/make-icon.mjs   # 重新生成图标
 - **DRM 受保护内容**（Netflix 等）loopback 为静音，无法处理。
 - **多声道下混**：CABLE 是 2 声道，5.1 会被压成立体声。
 - **延迟**：约 200–300ms（捕获缓冲为主），游戏/视频会有音画不同步；可把缓冲降到 50–100ms 试探。
-- **高质量档**：`rubberband=window=long:pitchq=quality`（实测 432.000Hz / 0.00 cent），CPU 占用更高。
+- **设备切换接口**：Windows 11 24H2+ 上 `IPolicyConfig` / WinRT `AudioPolicyConfig` 在部分机器上是空实现，
+  此时软件无法自动改默认设备 —— 启动/停止都会给出「打开系统声音设置」的手动降级路径。
+- **虚拟声卡识别**：按「设备名或适配器名含 VB-Audio / CABLE」过滤，因此 VB-CABLE A+B 的
+  `CABLE In 16ch` 也会被排除在输出列表外（不会误选导致自激）。
+- **还原目标失效**：若接管前那台设备已被永久移除（删除蓝牙配对、拔掉声卡），
+  还原时会自动改用当前可用的物理设备，并在日志里记录替换过程。
 - **升级时**：单文件版请连 `tools\` 一起替换，别只换 exe。
 - **exe 本体图标**：node.exe 带 Authenticode 签名，改 PE 资源会导致无法加载（已实测两种方式均崩溃），
   因此单文件版 exe 用默认图标，自定义图标由快捷方式 / Electron 外壳承载。

@@ -249,10 +249,13 @@ const clamp = (value, min, max) => {
 	if (!Number.isFinite(n)) return min;
 	return n < min ? min : n > max ? max : n;
 };
+/** 虚拟声卡识别：名字**或**适配器名命中关键字即算虚拟设备（防止改名/多语言漏判）。 */
 const looksLikeCable = (text) => {
 	const lower = String(text ?? "").toLowerCase();
 	return CABLE_HINTS.some((hint) => lower.includes(hint));
 };
+/** 端点是否为虚拟声卡（同时看 name 与 adapter，例如 VB-CABLE A+B 的 "CABLE In 16ch"）。 */
+const isVirtualEndpoint = (endpoint) => looksLikeCable(endpoint?.name) || looksLikeCable(endpoint?.adapter);
 const readJson = (path, fallback = null) => {
 	try {
 		return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : fallback;
@@ -360,8 +363,8 @@ let devicesRefreshing = false;
 
 /** 从一次端点枚举结果里挑出 VB-CABLE 与系统默认播放设备。 */
 function pickFromDevices(render, capture, defaultRender) {
-	const cableRender = render.find((item) => item.state === "active" && looksLikeCable(item.name));
-	const cableCapture = capture.find((item) => item.state === "active" && looksLikeCable(item.name));
+	const cableRender = render.find((item) => item.state === "active" && isVirtualEndpoint(item));
+	const cableCapture = capture.find((item) => item.state === "active" && isVirtualEndpoint(item));
 	return {
 		vcable: {
 			installed: cableRender !== undefined && cableCapture !== undefined,
@@ -454,7 +457,7 @@ function deviceListState() {
 /** 界面/日志共用的物理输出设备过滤：state==='active' 且非 CABLE。 */
 function physicalRender(source = deps) {
 	const render = Array.isArray(source?.render) ? source.render : [];
-	return render.filter((item) => item.state === "active" && !looksLikeCable(item.name));
+	return render.filter((item) => item.state === "active" && !isVirtualEndpoint(item));
 }
 
 /** 导出日志里列出物理输出设备名。 */
@@ -470,7 +473,7 @@ function renderNameLines(render) {
 function pickPhysicalOutput() {
 	const physical = physicalRender();
 	const def = deps?.defaultRender ?? null;
-	if (def !== null && !looksLikeCable(def.name)) {
+	if (def !== null && !isVirtualEndpoint(def)) {
 		const exact = physical.find((item) => item.id === def.id);
 		if (exact !== undefined) return exact;
 	}
@@ -628,7 +631,7 @@ async function startEngine(reason = "manual") {
 	if (endpoint === undefined) {
 		return { ok: false, error: `输出设备不可用：${config.outputDeviceName ?? outId}（可能已拔出）` };
 	}
-	if (looksLikeCable(endpoint.name)) {
+	if (isVirtualEndpoint(endpoint)) {
 		return { ok: false, error: `输出设备指向虚拟声卡（${endpoint.name}）：会造成自激啸叫，已拒绝启动` };
 	}
 
@@ -835,6 +838,23 @@ async function restoreDefaultDevice(reason = "") {
 		if (targetId === null && config.outputDeviceId !== null && config.outputDeviceId !== cableId) {
 			targetId = config.outputDeviceId;
 			targetName = config.outputDeviceName;
+		}
+		// 内存校验：目标设备若已永久移除（蓝牙配对删掉、声卡拔了），改用当前可用的物理设备
+		const physical = (deps?.render ?? []).filter((item) => !isVirtualEndpoint(item));
+		if (targetId !== null && !(deps?.render ?? []).some((item) => item.id === targetId)) {
+			const fallback = physical[0] ?? null;
+			if (fallback === null) {
+				return {
+					ok: false, restored: false, to: null,
+					error: `原设备已不可用（${targetName ?? targetId}），且当前没有其它可用物理播放设备`,
+					manualRequired: true,
+					manualHint: "请在「设置 → 系统 → 声音」里选择一个输出设备",
+					reason,
+				};
+			}
+			log(`还原目标「${targetName ?? targetId}」已不可用，改用「${fallback.name}」`);
+			targetId = fallback.id;
+			targetName = fallback.name;
 		}
 		if (targetId === null) {
 			return {
