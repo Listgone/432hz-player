@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>432Hz Player</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#12151c; --panel-2:#161a23; --card:#171b24; --card-hover:#1b2029;
+    --line:#242a36; --line-soft:#1e232d;
+    --fg:#f2f5f9; --fg-2:#a8b2c1; --fg-3:#6d7684;
+    --accent:#00d6a1; --accent-2:#22e0b4; --accent-dim:rgba(0,214,161,.13);
+    --warn:#f0b429; --danger:#ff5d5d; --info:#4ea1ff;
+    --radius:16px; --radius-sm:11px;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.28);
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Consolas,monospace;
+  }
+  html[data-theme="light"]{
+    --bg:#f4f6f9; --panel:#ffffff; --panel-2:#f0f3f7; --card:#ffffff; --card-hover:#f6f8fb;
+    --line:#dfe4ec; --line-soft:#e8ecf2;
+    --fg:#14181f; --fg-2:#4d5666; --fg-3:#7c8698;
+    --accent:#00a37c; --accent-2:#00c191; --accent-dim:rgba(0,163,124,.10);
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI Variable","Segoe UI","Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none;overflow:hidden;
+  }
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  .app{display:grid;grid-template-columns:236px 1fr;height:100vh}
+  .side{background:var(--panel);border-right:1px solid var(--line-soft);padding:18px 12px;display:flex;flex-direction:column;gap:4px;overflow-y:auto}
+  .brand{display:flex;align-items:center;gap:11px;padding:4px 8px 18px}
+  .brand-mark{width:38px;height:38px;border-radius:12px;flex:0 0 auto;background:linear-gradient(145deg,var(--accent-2),#0b9c86);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,214,161,.28)}
+  .brand-mark svg{width:22px;height:22px}
+  .brand-text b{display:block;font-size:14.5px;font-weight:650;letter-spacing:.2px}
+  .brand-text span{font-size:11.5px;color:var(--fg-3)}
+  .nav-label{font-size:10.5px;font-weight:600;letter-spacing:.09em;color:var(--fg-3);padding:14px 10px 6px;text-transform:uppercase}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:10px;color:var(--fg-2);font-size:13.5px;cursor:pointer;border:1px solid transparent;transition:background .14s,color .14s}
+  .nav-item:hover{background:var(--panel-2);color:var(--fg)}
+  .nav-item.active{background:var(--accent-dim);color:var(--accent);border-color:rgba(0,214,161,.22)}
+  .nav-item .ic{width:16px;text-align:center;opacity:.9}
+  .nav-item .badge{margin-left:auto;font-size:10.5px;font-family:var(--mono);color:var(--fg-3)}
+  .side-foot{margin-top:auto;padding:12px 10px 0;border-top:1px solid var(--line-soft);font-size:11px;color:var(--fg-3);line-height:1.8}
+  .side-foot .k{color:var(--fg-2);font-family:var(--mono)}
+
+  .main{overflow-y:auto;padding:20px 24px 36px}
+  .page{display:none;flex-direction:column;gap:16px;max-width:900px}
+  .page.active{display:flex}
+  .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+  .page-head h1{margin:0;font-size:20px;font-weight:650;letter-spacing:.2px}
+  .page-head p{margin:3px 0 0;font-size:12.5px;color:var(--fg-3)}
+
+  .card{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+  .card.tight{padding:14px 16px}
+  .card-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .card-h h2{margin:0;font-size:13px;font-weight:620;color:var(--fg-2);letter-spacing:.03em}
+  .hint{font-size:12px;color:var(--fg-3)}
+
+  .hero{background:radial-gradient(120% 140% at 100% 0%,var(--accent-dim) 0%,transparent 46%),var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:18px}
+  .hero-top{display:flex;align-items:center;gap:14px}
+  .pulse{position:relative;width:44px;height:44px;border-radius:50%;flex:0 0 auto;background:var(--panel-2);display:flex;align-items:center;justify-content:center;transition:background .25s}
+  .pulse i{width:11px;height:11px;border-radius:50%;background:var(--fg-3);transition:background .25s}
+  .pulse.on{background:rgba(0,214,161,.16)}
+  .pulse.on i{background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  .pulse.on::after{content:"";position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--accent);animation:ripple 2.1s ease-out infinite}
+  .pulse.err{background:rgba(255,93,93,.16)}
+  .pulse.err i{background:var(--danger);box-shadow:0 0 10px var(--danger)}
+  @keyframes ripple{0%{transform:scale(.86);opacity:.7}100%{transform:scale(1.5);opacity:0}}
+  .hero-state b{display:block;font-size:18px;font-weight:650}
+  .hero-state span{font-size:12px;color:var(--fg-3);font-family:var(--mono)}
+  .hero-actions{margin-left:auto;display:flex;gap:9px;flex-wrap:wrap}
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .metric{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:12px 14px}
+  .metric .lab{font-size:11px;color:var(--fg-3);margin-bottom:4px}
+  .metric .val{font-family:var(--mono);font-size:20px;font-weight:650;letter-spacing:-.2px}
+  .metric .val small{font-size:12px;font-weight:500;color:var(--fg-3);margin-left:2px}
+  .metric .sub{font-size:11px;color:var(--fg-3);margin-top:2px}
+  .metric.accent .val{color:var(--accent)}
+
+  button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--fg);padding:9px 15px;transition:background .14s,border-color .14s,transform .06s}
+  button:hover{background:var(--card-hover);border-color:var(--line)}
+  button:active{transform:translateY(1px)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:linear-gradient(180deg,var(--accent-2),var(--accent));border-color:transparent;color:#04140f;font-weight:640;box-shadow:0 3px 12px rgba(0,214,161,.24)}
+  button.primary:hover{filter:brightness(1.05)}
+  button.danger{color:var(--danger);border-color:rgba(255,93,93,.32)}
+  button.danger:hover{background:rgba(255,93,93,.09)}
+  button.sm{padding:6px 11px;font-size:12.5px;border-radius:9px}
+  .seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+  .seg button{border:0;background:transparent;padding:6px 12px;border-radius:8px;color:var(--fg-2);font-size:12.5px}
+  .seg button.on{background:var(--accent-dim);color:var(--accent);font-weight:600}
+
+  .chain{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:center;gap:8px}
+  .chain-node{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:12px;min-height:78px;display:flex;flex-direction:column;gap:5px;transition:background .16s}
+  .chain-node:hover{background:var(--card-hover)}
+  .chain-node .top{display:flex;align-items:center;gap:6px}
+  .chain-node .dot{width:7px;height:7px;border-radius:50%;background:var(--fg-3);flex:0 0 auto}
+  .chain-node .dot.ok{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+  .chain-node .dot.warn{background:var(--warn)}
+  .chain-node .dot.err{background:var(--danger)}
+  .chain-node .lb{font-size:11px;color:var(--fg-3);letter-spacing:.04em}
+  .chain-node .vv{font-size:12.5px;line-height:1.4;word-break:break-word}
+  .chain-node .dd{font-size:11px;color:var(--fg-3);font-family:var(--mono)}
+  .arrow{color:var(--line);font-size:15px}
+
+  .dial-wrap{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+  .dial{position:relative;width:206px;height:206px;flex:0 0 auto;touch-action:none;cursor:grab}
+  .dial:active{cursor:grabbing}
+  .dial svg{width:100%;height:100%;display:block;overflow:visible}
+  .dial .readout{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none}
+  .dial .big{font-family:var(--mono);font-size:32px;font-weight:650;letter-spacing:-1px;line-height:1.1}
+  .dial .big small{font-size:13px;font-weight:500;color:var(--fg-3);margin-left:2px;letter-spacing:0}
+  .dial .cents{font-family:var(--mono);font-size:12px;color:var(--accent);margin-top:2px}
+  .presets{display:flex;flex-direction:column;gap:13px;flex:1;min-width:250px}
+  .presets .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field > label{font-size:11.5px;color:var(--fg-3);display:flex;justify-content:space-between}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:4px;background:linear-gradient(90deg,var(--accent) var(--p,50%),var(--line) var(--p,50%));outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:grab}
+  .switch{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px}
+  .switch input{display:none}
+  .switch .track{width:38px;height:21px;border-radius:11px;background:var(--line);position:relative;transition:background .18s;flex:0 0 auto}
+  .switch .track::after{content:"";position:absolute;top:2.5px;left:2.5px;width:16px;height:16px;border-radius:50%;background:#8b95a3;transition:transform .18s,background .18s}
+  .switch input:checked + .track{background:var(--accent-dim);border:1px solid rgba(0,214,161,.4)}
+  .switch input:checked + .track::after{transform:translateX(17px);background:var(--accent)}
+
+  .meter{display:grid;grid-template-columns:52px 1fr 84px;align-items:center;gap:12px}
+  .meter + .meter{margin-top:10px}
+  .meter .bar{height:9px;border-radius:5px;background:var(--panel-2);border:1px solid var(--line-soft);overflow:hidden}
+  .meter .bar i{display:block;height:100%;width:0;border-radius:4px;background:linear-gradient(90deg,var(--accent) 0%,#8fe36a 58%,var(--warn) 80%,var(--danger) 100%);transition:width .12s linear}
+  .meter .num{font-family:var(--mono);font-size:11.5px;color:var(--fg-3);text-align:right}
+
+  select{width:100%;background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;cursor:pointer}
+  select:focus{outline:none;border-color:var(--accent)}
+
+  .banner{display:flex;gap:12px;padding:13px 15px;border-radius:var(--radius-sm);font-size:12.5px;line-height:1.6;border:1px solid}
+  .banner .bi{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+  .banner.warn{background:rgba(240,180,41,.09);border-color:rgba(240,180,41,.34);color:#c9971f}
+  html[data-theme="dark"] .banner.warn{color:#f6d488}
+  .banner.warn .bi{background:rgba(240,180,41,.2);color:var(--warn)}
+  .banner.err{background:rgba(255,93,93,.09);border-color:rgba(255,93,93,.34);color:#c0392b}
+  html[data-theme="dark"] .banner.err{color:#ffb4b4}
+  .banner.err .bi{background:rgba(255,93,93,.2);color:var(--danger)}
+  .banner.info{background:rgba(78,161,255,.09);border-color:rgba(78,161,255,.3);color:#2c6cb5}
+  html[data-theme="dark"] .banner.info{color:#b9d8ff}
+  .banner.info .bi{background:rgba(78,161,255,.2);color:var(--info)}
+  .banner b{display:block;font-size:13px;margin-bottom:2px}
+  .banner .acts{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+  .steps{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .step{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--fg-3);font-family:var(--mono)}
+  .step.done{border-color:rgba(0,214,161,.5);color:var(--accent)}
+  .step.now{border-color:rgba(240,180,41,.5);color:var(--warn)}
+
+  .log-view{font-family:var(--mono);font-size:11.5px;line-height:1.65;color:var(--fg-2);background:var(--panel-2);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:12px;height:360px;overflow:auto;white-space:pre-wrap;word-break:break-all;-webkit-user-select:text;user-select:text}
+  .log-view .warn{color:var(--warn)}
+  .log-view .err{color:var(--danger)}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .stat{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:10px 12px}
+  .stat .k{font-size:11px;color:var(--fg-3)}
+  .stat .v{font-family:var(--mono);font-size:13px;margin-top:2px;word-break:break-all}
+  .dep-row{display:flex;align-items:center;gap:11px;padding:11px 13px;background:var(--panel-2);border:1px solid var(--line-soft);border-radius:11px}
+  .dep-row .mk{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:0 0 auto}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(14px);background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px 18px;font-size:13px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{border-color:rgba(255,93,93,.5);color:var(--danger)}
+
+  @media (max-width:880px){.app{grid-template-columns:1fr}.side{display:none}.chain{grid-template-columns:1fr}.arrow{display:none}.metrics{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#04140f" stroke-width="2.1"/><path d="M12 7.2v9.6M9.2 9.4v5.2M14.8 9.4v5.2" stroke="#04140f" stroke-width="1.9" stroke-linecap="round"/></svg></div>
+      <div class="brand-text"><b data-i18n="app.name">432Hz 播放器</b><span data-i18n="app.tagline">系统音频实时移调</span></div>
+    </div>
+
+    <div class="nav-label" data-i18n="nav.groupMonitor">监控</div>
+    <div class="nav-item active" data-page="home"><span class="ic">◉</span><span data-i18n="nav.home">总览</span><span class="badge" id="navState">—</span></div>
+    <div class="nav-item" data-page="tune"><span class="ic">◎</span><span data-i18n="nav.tune">音高与音质</span></div>
+    <div class="nav-item" data-page="device"><span class="ic">▤</span><span data-i18n="nav.device">设备</span></div>
+
+    <div class="nav-label" data-i18n="nav.groupDiag">诊断</div>
+    <div class="nav-item" data-page="logs"><span class="ic">☰</span><span data-i18n="nav.logs">运行日志</span></div>
+    <div class="nav-item" data-page="about"><span class="ic">ⓘ</span><span data-i18n="nav.about">关于与检测</span></div>
+
+    <div class="side-foot">
+      <div><span data-i18n="side.out">输出</span> <span class="k" id="footOut">—</span></div>
+      <div><span data-i18n="side.clock">时钟</span> <span class="k" id="footClk">—</span></div>
+      <div><span data-i18n="side.latency">延迟</span> <span class="k" id="footLat">—</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- 总览 -->
+    <section class="page active" id="page-home">
+      <div class="page-head">
+        <div><h1 data-i18n="home.title">总览</h1><p data-i18n="home.sub">把系统正在播放的声音转成 432Hz 后送到物理声卡</p></div>
+      </div>
+      <div class="hero">
+        <div class="hero-top">
+          <div class="pulse" id="pulse"><i></i></div>
+          <div class="hero-state"><b id="stateText">—</b><span id="stateSub">—</span></div>
+          <div class="hero-actions">
+            <button class="primary" id="btnStart" data-i18n="btn.start">启动接管</button>
+            <button class="danger" id="btnStop" disabled data-i18n="btn.stop">停止</button>
+          </div>
+        </div>
+        <div class="metrics">
+          <div class="metric accent"><div class="lab" data-i18n="metric.pitch">目标音高 A4</div><div class="val" id="mHz">432.0<small>Hz</small></div><div class="sub" id="mCents">—</div></div>
+          <div class="metric"><div class="lab" data-i18n="metric.ratio">移调比</div><div class="val" id="mRatio">0.981818<small>×</small></div><div class="sub" data-i18n="metric.ratioSub">440 → 432（保时长）</div></div>
+          <div class="metric"><div class="lab" data-i18n="metric.uptime">运行时长</div><div class="val" id="mUp">—</div><div class="sub" id="mEngine">—</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2 data-i18n="chain.title">信号链</h2><span class="hint" id="chainHint">—</span></div>
+        <div class="chain">
+          <div class="chain-node"><div class="top"><span class="dot" id="d1"></span><span class="lb" data-i18n="chain.n1">01 系统音源</span></div><div class="vv" id="v1">—</div><div class="dd" id="x1"></div></div>
+          <div class="arrow">→</div>
+          <div class="chain-node"><div class="top"><span class="dot" id="d2"></span><span class="lb" data-i18n="chain.n2">02 捕获</span></div><div class="vv" id="v2">—</div><div class="dd" id="x2"></div></div>
+          <div class="arrow">→</div>
+          <div class="chain-node"><div class="top"><span class="dot" id="d3"></span><span class="lb" data-i18n="chain.n3">03 变调</span></div><div class="vv" id="v3">—</div><div class="dd" id="x3"></div></div>
+          <div class="arrow">→</div>
+          <div class="chain-node"><div class="top"><span class="dot" id="d4"></span><span class="lb" data-i18n="chain.n4">04 输出</span></div><div class="vv" id="v4">—</div><div class="dd" id="x4"></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2 data-i18n="meter.title">输出电平</h2><span class="hint" data-i18n="meter.sub">每 0.5 秒上报的真实 RMS</span></div>
+        <div class="meter"><span class="hint">RMS</span><div class="bar"><i id="vuRms"></i></div><span class="num" id="vuRmsTxt">—</span></div>
+        <div class="meter"><span class="hint" data-i18n="meter.peak">峰值</span><div class="bar"><i id="vuPeak"></i></div><span class="num" id="vuPeakTxt">—</span></div>
+      </div>
+
+      <div id="banners" style="display:flex;flex-direction:column;gap:12px"></div>
+    </section>
+
+    <!-- 音高与音质 -->
+    <section class="page" id="page-tune">
+      <div class="page-head"><div><h1 data-i18n="tune.title">音高与音质</h1><p data-i18n="tune.sub">拖动表盘实时生效；调到 440 可与原声 A/B 对比</p></div></div>
+      <div class="card">
+        <div class="dial-wrap">
+          <div class="dial" id="dial" role="slider" aria-valuemin="415" aria-valuemax="445" tabindex="0">
+            <svg viewBox="0 0 220 220">
+              <circle cx="110" cy="110" r="82" fill="none" stroke="var(--line)" stroke-width="10"/>
+              <defs><linearGradient id="g" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00b487"/><stop offset="1" stop-color="#2ce6b8"/></linearGradient></defs>
+              <path id="arc" fill="none" stroke="url(#g)" stroke-width="10" stroke-linecap="round"/>
+              <g id="ticks"></g>
+            </svg>
+            <div class="readout"><div class="big" id="dialBig">432.0<small>Hz</small></div><div class="cents" id="dialCents">—</div></div>
+          </div>
+          <div class="presets">
+            <div class="row">
+              <button class="sm" data-preset="432">432 Hz</button>
+              <button class="sm" data-preset="440">440 Hz</button>
+              <button class="sm" data-preset="444">444 Hz</button>
+            </div>
+            <div class="row"><span class="hint" data-i18n="tune.hold">按住对比：</span><button class="sm" id="btnAB" data-i18n="tune.ab">按住听 440</button></div>
+            <label class="switch"><input type="checkbox" id="hq" /><span class="track"></span><span data-i18n="tune.hq">高质量档（rubberband 相位声码器，谐波失真更小，CPU 略高）</span></label>
+            <div class="row"><button class="sm" id="btnTest" data-i18n="tune.selftest">链路自检</button><span class="hint" id="testOut"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2 data-i18n="sound.title">增益与混合</h2></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px">
+          <div class="field"><label><span data-i18n="sound.gain">增益</span><span id="gainVal" class="mono">0.0 dB</span></label><input type="range" id="gain" min="-12" max="12" step="0.5" value="0" /></div>
+          <div class="field"><label><span data-i18n="sound.mix">干湿混合</span><span id="mixVal" class="mono">100%</span></label><input type="range" id="mix" min="0" max="100" step="1" value="100" /></div>
+          <div class="field"><label><span data-i18n="sound.buffer">捕获缓冲</span><span id="bufVal" class="mono">200 ms</span></label><input type="range" id="buf" min="50" max="2000" step="50" value="200" /></div>
+        </div>
+        <div class="hint" style="margin-top:12px" data-i18n="sound.hint">缓冲越小延迟越低，但更容易爆音；干湿混合拉低可快速对比处理前后。</div>
+      </div>
+    </section>
+
+    <!-- 设备 -->
+    <section class="page" id="page-device">
+      <div class="page-head">
+        <div><h1 data-i18n="dev.title">设备</h1><p data-i18n="dev.sub">选择输出到哪个物理声卡；新接上的设备会自动出现</p></div>
+        <div class="toolbar"><button class="sm" id="btnRefresh" data-i18n="dev.rescan">重新扫描设备</button></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2 data-i18n="dev.outTitle">输出设备（物理扬声器 / 耳机）</h2><span class="hint" id="devCount">—</span></div>
+        <select id="outSel"></select>
+        <div class="hint" style="margin-top:10px" data-i18n="dev.outHint">列表只显示当前可用的物理输出设备，已排除虚拟声卡。连接蓝牙耳机后约 2 秒内会出现，直接选择即可切换输出。</div>
+        <div id="devWarn" style="margin-top:12px"></div>
+      </div>
+      <div class="card tight">
+        <div class="card-h" style="margin-bottom:10px"><h2 data-i18n="dev.chainTitle">链路设备</h2></div>
+        <div class="stats">
+          <div class="stat"><div class="k" data-i18n="dev.capture">捕获（录音端）</div><div class="v" id="capDev">—</div></div>
+          <div class="stat"><div class="k" data-i18n="dev.systemDefault">系统默认播放</div><div class="v" id="sysDef">—</div></div>
+          <div class="stat"><div class="k" data-i18n="dev.renderClock">渲染时钟</div><div class="v" id="devClock">—</div></div>
+          <div class="stat"><div class="k" data-i18n="dev.consume">消费速率</div><div class="v" id="consume">—</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 日志 -->
+    <section class="page" id="page-logs">
+      <div class="page-head">
+        <div><h1 data-i18n="logs.title">运行日志</h1><p data-i18n="logs.sub">后台运行数据，便于排查问题；也可导出成文件</p></div>
+        <div class="toolbar">
+          <button class="sm" id="btnLogRefresh" data-i18n="logs.refresh">刷新</button>
+          <button class="sm" id="btnLogCopy" data-i18n="logs.copy">复制</button>
+          <button class="sm" id="btnLogExport" data-i18n="logs.export">导出日志</button>
+          <button class="sm" id="btnOpenData" data-i18n="logs.openDir">打开数据目录</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2 data-i18n="logs.cardTitle">引擎与系统事件</h2><span class="hint" id="logMeta">—</span></div>
+        <div class="log-view" id="logs">—</div>
+      </div>
+      <div class="card tight"><div class="hint"><span data-i18n="logs.pathHint">日志同时写入</span> <span class="mono" id="logPath">%USERPROFILE%\.432hz-player\app.log</span><span data-i18n="logs.rotateHint">，超过 2MB 自动轮转。</span></div></div>
+    </section>
+
+    <!-- 关于 -->
+    <section class="page" id="page-about">
+      <div class="page-head"><div><h1 data-i18n="about.title">关于与检测</h1><p data-i18n="about.sub">依赖状态、界面语言与配置</p></div></div>
+      <div class="card">
+        <div class="card-h"><h2 data-i18n="about.deps">依赖</h2><span class="hint" id="aboutMode">—</span></div>
+        <div id="depList" style="display:flex;flex-direction:column;gap:9px"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2 data-i18n="about.ui">界面</h2></div>
+        <div class="field" style="max-width:320px">
+          <label><span data-i18n="about.lang">语言</span></label>
+          <select id="langSel">
+            <option value="auto" data-i18n="about.langAuto">跟随系统</option>
+            <option value="zh" data-i18n="about.langZh">简体中文</option>
+            <option value="en" data-i18n="about.langEn">English</option>
+          </select>
+        </div>
+        <div style="margin-top:14px">
+          <label class="switch"><input type="checkbox" id="themeAuto" /><span class="track"></span><span data-i18n="about.themeAuto">跟随系统明暗主题</span></label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2 data-i18n="about.config">配置</h2><span class="hint">%USERPROFILE%\.432hz-player\config.json</span></div>
+        <pre class="log-view" id="cfgJson" style="height:auto;max-height:280px">—</pre>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2 data-i18n="about.lifecycle">启动与退出</h2></div>
+        <label class="switch" style="margin-bottom:12px"><input type="checkbox" id="autostart" /><span class="track"></span><span data-i18n="about.autostart">开机自动启动（后台静默接管，不弹窗口）</span></label>
+        <div class="hint" id="autostartNote"></div>
+        <div class="toolbar" style="margin-top:14px"><button class="danger" id="btnQuit" data-i18n="about.quit">退出软件</button></div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================ i18n ============================ */
+const I18N = {
+  zh: {
+    "app.name":"432Hz 播放器","app.tagline":"系统音频实时移调",
+    "nav.groupMonitor":"监控","nav.groupDiag":"诊断","nav.home":"总览","nav.tune":"音高与音质","nav.device":"设备","nav.logs":"运行日志","nav.about":"关于与检测",
+    "side.out":"输出","side.clock":"时钟","side.latency":"延迟",
+    "home.title":"总览","home.sub":"把系统正在播放的声音转成 432Hz 后送到物理声卡",
+    "btn.start":"启动接管","btn.stop":"停止",
+    "metric.pitch":"目标音高 A4","metric.ratio":"移调比","metric.ratioSub":"440 → 432（保时长）","metric.uptime":"运行时长",
+    "chain.title":"信号链","chain.n1":"01 系统音源","chain.n2":"02 捕获","chain.n3":"03 变调","chain.n4":"04 输出",
+    "chain.ready":"全部节点就绪","chain.idle":"待机","chain.taken":"已接管全部 App","chain.notTaken":"未接管","chain.quality":"保时长","chain.hq":"高质量档","chain.std":"标准档",
+    "meter.title":"输出电平","meter.sub":"每 0.5 秒上报的真实 RMS","meter.peak":"峰值",
+    "tune.title":"音高与音质","tune.sub":"拖动表盘实时生效；调到 440 可与原声 A/B 对比","tune.hold":"按住对比：","tune.ab":"按住听 440",
+    "tune.hq":"高质量档（rubberband 相位声码器，谐波失真更小，CPU 略高）","tune.selftest":"链路自检","tune.testing":"自检中…",
+    "sound.title":"增益与混合","sound.gain":"增益","sound.mix":"干湿混合","sound.buffer":"捕获缓冲",
+    "sound.hint":"缓冲越小延迟越低，但更容易爆音；干湿混合拉低可快速对比处理前后。",
+    "dev.title":"设备","dev.sub":"选择输出到哪个物理卡；新接上的设备会自动出现","dev.rescan":"重新扫描设备",
+    "dev.outTitle":"输出设备（物理扬声器 / 耳机）","dev.outHint":"列表只显示当前可用的物理输出设备，已排除虚拟声卡。连接蓝牙耳机后约 2 秒内会出现，直接选择即可切换输出。",
+    "dev.chainTitle":"链路设备","dev.capture":"捕获（录音端）","dev.systemDefault":"系统默认播放","dev.renderClock":"渲染时钟","dev.consume":"消费速率",
+    "dev.disconnected":"当前输出设备已断开","dev.disconnectedHint":"请在上方重新选择（蓝牙设备断开后通常会从列表消失，重新连上后约 2 秒自动回来）。",
+    "dev.available":"{n} 个可用","dev.none":"（未检测到可用物理输出设备）",
+    "kind.speaker":"扬声器","kind.headphone":"耳机","kind.monitor":"显示器","kind.digital":"数字输出","kind.other":"播放设备",
+    "logs.title":"运行日志","logs.sub":"后台运行数据，便于排查问题；也可导出成文件","logs.refresh":"刷新","logs.copy":"复制","logs.export":"导出日志",
+    "logs.openDir":"打开数据目录","logs.cardTitle":"引擎与系统事件","logs.pathHint":"日志同时写入","logs.rotateHint":"，超过 2MB 自动轮转。",
+    "logs.copied":"日志已复制到剪贴板","logs.copyFail":"复制失败，请手动选择","logs.readFail":"读取失败",
+    "about.title":"关于与检测","about.sub":"依赖状态、界面语言与配置","about.deps":"依赖","about.ui":"界面","about.lang":"语言",
+    "about.langAuto":"跟随系统","about.langZh":"简体中文","about.langEn":"English","about.themeAuto":"跟随系统明暗主题",
+    "about.config":"配置","about.lifecycle":"启动与退出","about.autostart":"开机自动启动（后台静默接管，不弹窗口）",
+    "about.quit":"退出软件","about.modeSingle":"桌面应用","about.modeDev":"开发模式",
+    "about.autostartOn":"已写入「启动」目录，下次开机自动静默接管","about.autostartOff":"未开启",
+    "state.taken":"已接管","state.error":"引擎异常","state.idle":"未接管","state.running":"运行中","state.standby":"待机","state.ready":"就绪，等待启动","state.noCable":"缺少 VB-CABLE",
+    "state.sub.running":"运行中 · {s}s","state.engineRunning":"引擎运行中","state.engineIdle":"引擎未运行",
+    "msg.started":"已开始接管","msg.stopped":"已停止，声音直通原设备","msg.startFail":"启动失败","msg.rescanned":"已重新扫描设备",
+    "msg.autostartOn":"已开启开机自动启动","msg.autostartOff":"已关闭开机自动启动","msg.autostartFail":"设置失败：{e}","msg.copied":"已复制","msg.opened":"已打开数据目录",
+    "toast.pass":"自检通过","toast.fail":"自检未达标","toast.copy":"日志已复制到剪贴板","toast.copyFail":"复制失败，请手动选择",
+    "test.result":"实测 {hz} Hz（{cents} cent）· 时长差 {dur}% · {verdict}","test.pass":"通过","test.fail":"未达标","test.failed":"失败：{e}",
+    "banner.errTitle":"引擎异常","banner.retry":"重试启动",
+    "banner.noCableTitle":"未检测到 VB-CABLE 虚拟声卡","banner.noCableBody":"装好驱动后必须重启电脑，才会同时出现 CABLE Input 与 CABLE Output。",
+    "banner.step1":"下载驱动","banner.step2":"管理员运行安装","banner.step3":"重启电脑","banner.step4":"回到本软件扫描",
+    "banner.reprobe":"重新探测","banner.download":"打开下载页",
+    "banner.noFfmpegTitle":"未找到 ffmpeg","banner.noFfmpegBody":"命令行执行 winget install --id Gyan.FFmpeg -e 后重启本软件。",
+    "banner.pickTitle":"请先选择输出设备","banner.pickBody":"到「设备」页选一个你实际在用的物理扬声器或耳机（不要选 CABLE）。","banner.pickGo":"去选择",
+    "restore.title":"声音可能被留在虚拟声卡上","restore.body":"系统默认播放设备仍指向 CABLE Input，声音会进虚拟声卡却没有输出 —— 表现就是「没声音」。",
+    "restore.target":"应改回：{name}","restore.open":"打开系统声音设置","restore.manual":"我已在系统设置里改好","restore.retry":"重试自动还原",
+    "restore.failedToast":"自动还原失败：本机切换接口无效，请用系统声音设置手动改回","restore.doneToast":"已记录：请确认系统默认输出设备正确","restore.okToast":"已还原默认播放设备",
+    "dep.vcable":"VB-CABLE 虚拟声卡","dep.ffmpeg":"ffmpeg","dep.dshow":"dshow 音频捕获支持","dep.endpoint":"端点工具 AudioEndpoint.exe","dep.render":"输出渲染器 AudioRender.exe",
+    "dep.ok":"就绪","dep.missing":"缺失","dep.notFound":"未找到（需加入 PATH）","dep.noDshow":"该 ffmpeg 构建缺少 dshow","dep.notFoundCable":"未检测到 CABLE Output",
+    "quit.confirm":"退出 432Hz 播放器？\n\n音频处理会停止，系统声音回到原来的默认播放设备。",
+    "quit.done":"已退出。<br>可以关闭此窗口。","quit.desktop":"已退出，窗口即将关闭。"
+  },
+  en: {
+    "app.name":"432Hz Player","app.tagline":"Real-time pitch shift for system audio",
+    "nav.groupMonitor":"Monitor","nav.groupDiag":"Diagnostics","nav.home":"Overview","nav.tune":"Pitch & Quality","nav.device":"Devices","nav.logs":"Logs","nav.about":"About",
+    "side.out":"Output","side.clock":"Clock","side.latency":"Latency",
+    "home.title":"Overview","home.sub":"Shift everything you play down to 432 Hz and send it to your speakers",
+    "btn.start":"Start","btn.stop":"Stop",
+    "metric.pitch":"Target pitch A4","metric.ratio":"Ratio","metric.ratioSub":"440 → 432 (duration kept)","metric.uptime":"Uptime",
+    "chain.title":"Signal chain","chain.n1":"01 Source","chain.n2":"02 Capture","chain.n3":"03 Pitch","chain.n4":"04 Output",
+    "chain.ready":"All stages ready","chain.idle":"Standby","chain.taken":"All apps captured","chain.notTaken":"Not capturing","chain.quality":"duration kept","chain.hq":"high quality","chain.std":"standard",
+    "meter.title":"Output level","meter.sub":"Real RMS reported every 0.5 s","meter.peak":"Peak",
+    "tune.title":"Pitch & quality","tune.sub":"Drag the dial — applies live. Hold 440 to A/B against the original.","tune.hold":"Compare:","tune.ab":"Hold for 440",
+    "tune.hq":"High quality (rubberband phase vocoder — less harmonic distortion, a bit more CPU)","tune.selftest":"Self-test","tune.testing":"Testing…",
+    "sound.title":"Gain & mix","sound.gain":"Gain","sound.mix":"Dry / wet","sound.buffer":"Capture buffer",
+    "sound.hint":"Smaller buffer means lower latency but more risk of dropouts. Lower the mix slider to compare processed vs. original.",
+    "dev.title":"Devices","dev.sub":"Pick which physical sound card to play through — new devices appear automatically","dev.rescan":"Rescan devices",
+    "dev.outTitle":"Output device (speakers / headphones)","dev.outHint":"Only currently available physical outputs are listed (virtual cables excluded). A Bluetooth headset shows up within ~2 seconds of connecting — just pick it.",
+    "dev.chainTitle":"Chain devices","dev.capture":"Capture (recording side)","dev.systemDefault":"System default output","dev.renderClock":"Render clock","dev.consume":"Consume rate",
+    "dev.disconnected":"Selected output device is disconnected","dev.disconnectedHint":"Please pick another one above (Bluetooth devices disappear when disconnected and come back within ~2 seconds once reconnected).",
+    "dev.available":"{n} available","dev.none":"(no available physical output device found)",
+    "kind.speaker":"Speaker","kind.headphone":"Headphones","kind.monitor":"Monitor","kind.digital":"Digital","kind.other":"Output",
+    "logs.title":"Logs","logs.sub":"Background runtime data for troubleshooting — exportable","logs.refresh":"Refresh","logs.copy":"Copy","logs.export":"Export log",
+    "logs.openDir":"Open data folder","logs.cardTitle":"Engine & system events","logs.pathHint":"Also written to","logs.rotateHint":", rotated at 2 MB.",
+    "logs.copied":"Log copied to clipboard","logs.copyFail":"Copy failed — please select manually","logs.readFail":"Read failed",
+    "about.title":"About","about.sub":"Dependencies, language and configuration","about.deps":"Dependencies","about.ui":"Interface","about.lang":"Language",
+    "about.langAuto":"System default","about.langZh":"简体中文","about.langEn":"English","about.themeAuto":"Follow system light/dark theme",
+    "about.config":"Configuration","about.lifecycle":"Startup & exit","about.autostart":"Launch at login (silent, no window)",
+    "about.quit":"Quit","about.modeSingle":"Desktop app","about.modeDev":"Development mode",
+    "about.autostartOn":"Shortcut created in the Startup folder — will take over silently at next login","about.autostartOff":"Off",
+    "state.taken":"Active","state.error":"Engine error","state.idle":"Idle","state.running":"Running","state.standby":"Standby","state.ready":"Ready","state.noCable":"VB-CABLE missing",
+    "state.sub.running":"Running · {s}s","state.engineRunning":"Engine running","state.engineIdle":"Engine stopped",
+    "msg.started":"Takeover started","msg.stopped":"Stopped — audio passes through untouched","msg.startFail":"Failed to start","msg.rescanned":"Devices rescanned",
+    "msg.autostartOn":"Launch at login enabled","msg.autostartOff":"Launch at login disabled","msg.autostartFail":"Failed: {e}","msg.copied":"Copied","msg.opened":"Data folder opened",
+    "toast.pass":"Self-test passed","toast.fail":"Self-test below target","toast.copy":"Log copied to clipboard","toast.copyFail":"Copy failed — select manually",
+    "test.result":"measured {hz} Hz ({cents} cent) · duration delta {dur}% · {verdict}","test.pass":"passed","test.fail":"below target","test.failed":"failed: {e}",
+    "banner.errTitle":"Engine error","banner.retry":"Retry",
+    "banner.noCableTitle":"VB-CABLE virtual sound card not found","banner.noCableBody":"After installing the driver you must reboot — only then do CABLE Input and CABLE Output both appear.",
+    "banner.step1":"Download driver","banner.step2":"Run installer as admin","banner.step3":"Reboot","banner.step4":"Rescan here",
+    "banner.reprobe":"Rescan","banner.download":"Download page",
+    "banner.noFfmpegTitle":"ffmpeg not found","banner.noFfmpegBody":"Run winget install --id Gyan.FFmpeg -e in a terminal, then restart this app.",
+    "banner.pickTitle":"Choose an output device first","banner.pickBody":"Open the Devices page and pick the speakers or headphones you actually use (not CABLE).","banner.pickGo":"Choose now",
+    "restore.title":"Sound may be left on the virtual cable","restore.body":"The system default output still points at CABLE Input — audio goes into the virtual cable and never comes out, which sounds like silence.",
+    "restore.target":"Should be set back to: {name}","restore.open":"Open Windows sound settings","restore.manual":"I've already changed it","restore.retry":"Retry automatic restore",
+    "restore.failedToast":"Automatic restore failed — the device-switch API is a no-op here; please change it in Windows sound settings","restore.doneToast":"Noted — please make sure the default output device is correct","restore.okToast":"Default playback device restored",
+    "dep.vcable":"VB-CABLE virtual sound card","dep.ffmpeg":"ffmpeg","dep.dshow":"dshow capture support","dep.endpoint":"Endpoint tool AudioEndpoint.exe","dep.render":"Output renderer AudioRender.exe",
+    "dep.ok":"ready","dep.missing":"missing","dep.notFound":"not found (add to PATH)","dep.noDshow":"this ffmpeg build lacks dshow","dep.notFoundCable":"CABLE Output not detected",
+    "quit.confirm":"Quit 432Hz Player?\n\nAudio processing stops and system sound returns to your previous default device.",
+    "quit.done":"Quit.<br>You can close this window.","quit.desktop":"Quit. Closing the window."
+  }
+};
+let LANG = "zh";
+const t = (key, vars) => {
+  let s = (I18N[LANG] && I18N[LANG][key]) || I18N.zh[key] || key;
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
+  return s;
+};
+function applyI18n() {
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    const key = el.dataset.i18n;
+    if (I18N[LANG][key] !== undefined || I18N.zh[key] !== undefined) el.textContent = t(key);
+  });
+  document.title = t("app.name");
+  document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
+}
+
+/* ============================ 工具 ============================ */
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+let S = null, dialLocal = 432, abHeld = false, busy = false, activePage = "home";
+const DESKTOP = typeof window.desktop !== "undefined";
+
+async function api(path, body) {
+  try {
+    const res = await fetch(`/api/${path}`, body === undefined
+      ? { cache: "no-store" }
+      : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const ct = res.headers.get("content-type") || "";
+    return ct.includes("json") ? await res.json() : { ok: res.ok, text: await res.text() };
+  } catch (e) { return { ok: false, error: String(e.message || e) }; }
+}
+let toastTimer = null;
+function toast(msg, isErr) {
+  const el = $("toast");
+  el.textContent = msg;
+  el.className = "toast show" + (isErr ? " err" : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = "toast"; }, 2600);
+}
+const fmtHz = (v) => (Math.round(v * 10) / 10).toFixed(1);
+const centsOf = (hz) => 1200 * Math.log2(hz / 440);
+const fmtCents = (hz) => `${centsOf(hz) >= 0 ? "+" : "−"}${Math.abs(centsOf(hz)).toFixed(2)} cent`;
+const polar = (cx, cy, r, deg) => { const a = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
+const hzToDeg = (hz) => -120 + 240 * clamp((hz - 415) / 30, 0, 1);
+const arcPath = (cx, cy, r, a1, a2) => {
+  const [x1, y1] = polar(cx, cy, r, a1), [x2, y2] = polar(cx, cy, r, a2);
+  return `M ${x1} ${y1} A ${r} ${r} 0 ${a2 - a1 <= 180 ? 0 : 1} 1 ${x2} ${y2}`;
+};
+const dbToPct = (db) => (db === null || db === undefined || !isFinite(db)) ? 0 : clamp(((Number(db) + 60) / 60) * 100, 0, 100);
+const escapeHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function setRange(el, value, min, max) {
+  if (!el) return;
+  el.value = value;
+  el.style.setProperty("--p", `${((value - min) / (max - min)) * 100}%`);
+}
+function deviceKind(name) {
+  const n = String(name || "");
+  if (/耳机|headphone|earbud|airpod|buds|hands-free|A2DP|Headset/i.test(n)) return t("kind.headphone");
+  if (/HDMI|Display|监视器|显示器|monitor/i.test(n)) return t("kind.monitor");
+  if (/digital|S\/PDIF|光纤/i.test(n)) return t("kind.digital");
+  if (/扬声器|speaker|realtek|edifier/i.test(n)) return t("kind.speaker");
+  return t("kind.other");
+}
+
+/* ============================ 主题 ============================ */
+function resolveTheme() {
+  const auto = $("themeAuto") ? $("themeAuto").checked : true;
+  if (!auto) return "dark";
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+function applyTheme() {
+  document.documentElement.dataset.theme = resolveTheme();
+}
+window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { if ($("themeAuto")?.checked) applyTheme(); });
+
+/* ============================ 表盘 ============================ */
+function drawTicks() {
+  const g = $("ticks");
+  let html = "";
+  for (let hz = 415; hz <= 445; hz += 5) {
+    const ang = hzToDeg(hz);
+    const [x1, y1] = polar(110, 110, 74, ang), [x2, y2] = polar(110, 110, 68, ang);
+    const ref = hz === 440;
+    html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${ref ? "var(--fg-3)" : "var(--line)"}" stroke-width="${ref ? 2.4 : 1.4}" stroke-linecap="round"/>`;
+  }
+  for (const [hz, txt] of [[415, "415"], [430, "430"], [445, "445"]]) {
+    const [tx, ty] = polar(110, 110, 99, hzToDeg(hz));
+    html += `<text x="${tx}" y="${ty}" fill="var(--fg-3)" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" dominant-baseline="middle">${txt}</text>`;
+  }
+  for (const [hz, color] of [[432, "var(--accent)"], [440, "var(--fg-3)"]]) {
+    const ang = hzToDeg(hz);
+    const [x1, y1] = polar(110, 110, 90, ang), [x2, y2] = polar(110, 110, 78, ang);
+    html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="2.4" stroke-linecap="round"/>`;
+  }
+  g.innerHTML = html;
+}
+function renderDial() {
+  const hz = abHeld ? 440 : dialLocal;
+  $("arc").setAttribute("d", arcPath(110, 110, 82, -120, hzToDeg(hz)));
+  $("arc").setAttribute("stroke", abHeld ? "var(--fg-3)" : "url(#g)");
+  $("dialBig").innerHTML = `${fmtHz(hz)}<small>Hz</small>`;
+  $("dialCents").textContent = fmtCents(hz);
+  $("dialCents").style.color = abHeld ? "var(--fg-3)" : "var(--accent)";
+  $("mHz").innerHTML = `${fmtHz(hz)}<small>Hz</small>`;
+  $("mCents").textContent = fmtCents(hz);
+  $("mRatio").innerHTML = `${(hz / 440).toFixed(6)}<small>×</small>`;
+  document.querySelectorAll("[data-preset]").forEach((b) => {
+    const on = Number(b.dataset.preset) === Math.round(hz);
+    b.style.borderColor = on ? "rgba(0,214,161,.5)" : "";
+    b.style.color = on ? "var(--accent)" : "";
+  });
+}
+
+/* ============================ 导航 ============================ */
+document.querySelectorAll(".nav-item").forEach((item) => {
+  item.addEventListener("click", () => {
+    activePage = item.dataset.page;
+    document.querySelectorAll(".nav-item").forEach((n) => n.classList.toggle("active", n === item));
+    document.querySelectorAll(".page").forEach((p) => p.classList.toggle("active", p.id === `page-${activePage}`));
+    if (activePage === "logs") void loadLogs();
+  });
+});
+
+/* ============================ 操作 ============================ */
+async function commit(patch) {
+  if (busy) return;
+  busy = true;
+  const r = await api("config", patch);
+  busy = false;
+  if (r && r.ok === false && r.error) toast(r.error, true);
+  await refresh();
+}
+async function start() { busy = true; const r = await api("start", {}); busy = false; if (r.ok !== true) toast(`${t("msg.startFail")}: ${r.error ?? ""}`, true); else toast(t("msg.started")); await refresh(); }
+async function stop() { busy = true; await api("stop", {}); busy = false; toast(t("msg.stopped")); await refresh(); }
+$("btnStart").addEventListener("click", start);
+$("btnStop").addEventListener("click", stop);
+
+(function dialDrag() {
+  const dial = $("dial");
+  let down = false;
+  const set = (ev) => {
+    const r = dial.getBoundingClientRect();
+    let deg = Math.atan2(ev.clientY - r.top - r.height / 2, ev.clientX - r.left - r.width / 2) * 180 / Math.PI + 90;
+    if (deg > 180) deg -= 360;
+    if (deg < -180) deg += 360;
+    dialLocal = Math.round((415 + ((clamp(deg, -120, 120) + 120) / 240) * 30) * 10) / 10;
+    renderDial();
+  };
+  dial.addEventListener("pointerdown", (e) => { down = true; try { dial.setPointerCapture(e.pointerId); } catch {} set(e); });
+  dial.addEventListener("pointermove", (e) => { if (down) set(e); });
+  const end = () => { if (!down) return; down = false; void commit({ targetHz: dialLocal }); };
+  dial.addEventListener("pointerup", end);
+  dial.addEventListener("pointercancel", end);
+  dial.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    dialLocal = clamp(Math.round((dialLocal + (e.key === "ArrowLeft" ? -0.5 : 0.5)) * 10) / 10, 415, 445);
+    renderDial();
+    void commit({ targetHz: dialLocal });
+  });
+})();
+document.querySelectorAll("[data-preset]").forEach((b) => b.addEventListener("click", () => {
+  dialLocal = Number(b.dataset.preset);
+  renderDial();
+  void commit({ targetHz: dialLocal });
+}));
+
+const ab = $("btnAB");
+ab.addEventListener("pointerdown", async () => { abHeld = true; renderDial(); await api("config", { targetHz: 440 }); });
+["pointerup", "pointerleave", "pointercancel"].forEach((ev) => ab.addEventListener(ev, async () => {
+  if (!abHeld) return;
+  abHeld = false;
+  renderDial();
+  await api("config", { targetHz: dialLocal });
+  await refresh();
+}));
+
+function bindRange(id, labelId, fmt, patch) {
+  const el = $(id);
+  el.addEventListener("input", () => {
+    setRange(el, Number(el.value), Number(el.min), Number(el.max));
+    $(labelId).textContent = fmt(el.value);
+  });
+  el.addEventListener("change", () => void commit(patch(Number(el.value))));
+}
+bindRange("gain", "gainVal", (v) => `${v >= 0 ? "+" : ""}${Number(v).toFixed(1)} dB`, (v) => ({ gainDb: v }));
+bindRange("mix", "mixVal", (v) => `${v}%`, (v) => ({ mix: v / 100 }));
+bindRange("buf", "bufVal", (v) => `${v} ms`, (v) => ({ bufferMs: v }));
+
+$("hq").addEventListener("change", (e) => void commit({ highQuality: e.target.checked }));
+$("btnRefresh").addEventListener("click", async () => { await api("devices", {}); await refresh(); toast(t("msg.rescanned")); });
+$("outSel").addEventListener("change", () => void commit({ outputDeviceId: $("outSel").value || null }));
+$("langSel").addEventListener("change", async (e) => {
+  const v = e.target.value;
+  await commit({ uiLang: v });
+  LANG = v === "auto" ? (navigator.language || "zh").toLowerCase().startsWith("zh" ? "zh" : "en") : v;
+  applyI18n();
+  drawTicks();
+  renderDial();
+  void refresh();
+});
+$("themeAuto").addEventListener("change", () => { applyTheme(); });
+$("btnQuit").addEventListener("click", async () => {
+  if (!confirm(t("quit.confirm"))) return;
+  if (DESKTOP) { await window.desktop.quit(); return; }
+  await api("quit", {});
+  document.body.innerHTML = `<div style="display:flex;height:100vh;align-items:center;justify-content:center;color:var(--fg-2);font-size:15px;text-align:center;line-height:2">${t("quit.done")}</div>`;
+});
+$("autostart").addEventListener("change", async (e) => {
+  const want = e.target.checked;
+  const r = await api("autostart", { enabled: want });
+  if (r.ok !== true) { e.target.checked = !want; toast(t("msg.autostartFail", { e: r.error ?? "?" }), true); return; }
+  toast(want ? t("msg.autostartOn") : t("msg.autostartOff"));
+});
+$("btnTest").addEventListener("click", async () => {
+  $("testOut").textContent = t("tune.testing");
+  const r = await api("selftest", {});
+  if (r.ok !== true) { $("testOut").textContent = t("test.failed", { e: r.error }); return; }
+  $("testOut").textContent = t("test.result", {
+    hz: r.measuredHz,
+    cents: `${r.centsOff >= 0 ? "+" : "−"}${Math.abs(r.centsOff).toFixed(2)}`,
+    dur: r.durationDeltaPct,
+    verdict: r.pass ? t("test.pass") : t("test.fail"),
+  });
+  toast(r.pass ? t("toast.pass") : t("toast.fail"), !r.pass);
+});
+
+/* 停止接管后若默认设备没还回去：一键打开系统声音设置 / 重试 / 人工确认 */
+async function openSoundSettings() {
+  const r = await api("open-sound-settings", {});
+  if (r.ok !== true) toast(`打开失败：${r.error ?? "?"}`, true);
+  else toast(t("restore.failedToast"));
+}
+async function retryRestore() {
+  const r = await api("restore-default-device", {});
+  toast(r.ok === true ? t("restore.okToast") : t("restore.failedToast"), r.ok !== true);
+  await refresh();
+}
+async function ackManual() {
+  await api("config", { defaultDeviceSnapshot: null });
+  toast(t("restore.doneToast"));
+  await refresh();
+}
+
+async function loadLogs() {
+  const r = await api("logs?tail=400");
+  if (r.ok !== true) { $("logs").textContent = `${t("logs.readFail")}: ${r.error ?? "?"}`; return; }
+  const lines = r.lines || [];
+  $("logs").innerHTML = lines.length === 0 ? "—" : lines.map((line) => {
+    const cls = /(error|失败|异常|exit code=[1-9]|崩溃)/i.test(line) ? "err" : /(warn|警告|回滚)/i.test(line) ? "warn" : "";
+    return cls ? `<span class="${cls}">${escapeHtml(line)}</span>` : escapeHtml(line);
+  }).join("\n");
+  $("logs").scrollTop = $("logs").scrollHeight;
+  $("logMeta").textContent = `${lines.length}`;
+  if (r.path) $("logPath").textContent = r.path;
+}
+$("btnLogRefresh").addEventListener("click", () => void loadLogs());
+$("btnLogCopy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("logs").textContent); toast(t("toast.copy")); }
+  catch { toast(t("toast.copyFail"), true); }
+});
+$("btnLogExport").addEventListener("click", () => { window.location.href = "/api/export-log"; });
+$("btnOpenData").addEventListener("click", async () => {
+  if (DESKTOP) { await window.desktop.openDataDir(); toast(t("msg.opened")); return; }
+  await api("open-data-dir", {});
+  toast(t("msg.opened"));
+});
+
+/* ============================ 状态 ============================ */
+async function refresh() {
+  const s = await api("status");
+  if (!s || s.ok !== true) return;
+  S = s;
+  const running = s.running === true;
+
+  $("navState").textContent = running ? t("state.running") : (s.phase === "error" ? "!" : t("state.standby"));
+  $("pulse").className = "pulse" + (running ? " on" : (s.phase === "error" ? " err" : ""));
+  $("stateText").textContent = running ? t("state.taken") : (s.phase === "error" ? t("state.error") : t("state.idle"));
+  $("stateSub").textContent = running
+    ? t("state.sub.running", { s: Math.floor((s.uptimeMs || 0) / 1000) })
+    : (s.deps.vcable.installed ? t("state.ready") : t("state.noCable"));
+  $("mUp").textContent = running ? `${Math.floor((s.uptimeMs || 0) / 1000)}s` : "—";
+  $("mEngine").textContent = running ? t("state.engineRunning") : t("state.engineIdle");
+  $("btnStart").disabled = running; $("btnStop").disabled = !running;
+
+  if (!abHeld) { dialLocal = s.targetHz; $("hq").checked = s.config.highQuality === true; }
+  renderDial();
+  setRange($("gain"), s.config.gainDb, -12, 12); $("gainVal").textContent = `${s.config.gainDb >= 0 ? "+" : ""}${Number(s.config.gainDb).toFixed(1)} dB`;
+  setRange($("mix"), Math.round(s.config.mix * 100), 0, 100); $("mixVal").textContent = `${Math.round(s.config.mix * 100)}%`;
+  setRange($("buf"), s.config.bufferMs, 50, 2000); $("bufVal").textContent = `${s.config.bufferMs} ms`;
+
+  const def = s.deps.defaultRender;
+  const capName = s.deps.vcable.captureName ?? s.config.captureDeviceName ?? "—";
+  const outName = s.config.outputDeviceName ?? "—";
+  $("d1").className = "dot " + (running ? "ok" : "");
+  $("v1").innerHTML = escapeHtml(def ? def.name : "—");
+  $("x1").textContent = running ? t("chain.taken") : t("chain.notTaken");
+  $("d2").className = "dot " + (running ? "ok" : (s.deps.vcable.installed ? "" : "warn"));
+  $("v2").innerHTML = escapeHtml(capName);
+  $("x2").textContent = `dshow · 48000 Hz · ${s.config.bufferMs} ms`;
+  $("d3").className = "dot " + (running ? "ok" : "");
+  $("v3").innerHTML = `<b>${fmtHz(dialLocal)} Hz</b>`;
+  $("x3").textContent = `${t("chain.quality")} · ${s.config.highQuality ? t("chain.hq") : t("chain.std")}`;
+  $("d4").className = "dot " + (running ? "ok" : (s.outputDeviceAvailable === false ? "err" : ""));
+  $("v4").innerHTML = escapeHtml(outName);
+  $("x4").textContent = s.renderer ? `WASAPI · ${s.renderer.deviceRate}Hz/${s.renderer.deviceChannels}ch` : "WASAPI";
+  $("chainHint").textContent = running ? t("chain.ready") : t("chain.idle");
+
+  const rms = running && s.levels ? s.levels.rmsDb : null;
+  const peak = running && s.levels ? s.levels.peak : 0;
+  $("vuRms").style.width = `${dbToPct(rms)}%`;
+  $("vuPeak").style.width = `${dbToPct(peak > 0 ? 20 * Math.log10(peak) : null)}%`;
+  $("vuRmsTxt").textContent = (rms === null || rms === undefined) ? "—" : `${Number(rms).toFixed(1)} dBFS`;
+  $("vuPeakTxt").textContent = peak ? Number(peak).toFixed(4) : "—";
+
+  const list = s.deps.render || [];
+  $("devCount").textContent = t("dev.available", { n: list.length });
+  const sig = list.map((d) => d.id).join("|") + "::" + (s.config.outputDeviceId || "");
+  if ($("outSel").dataset.sig !== sig) {
+    $("outSel").dataset.sig = sig;
+    $("outSel").innerHTML = list.length === 0
+      ? `<option value="">${t("dev.none")}</option>`
+      : list.map((d) => `<option value="${d.id}"${d.id === s.config.outputDeviceId ? " selected" : ""}>${escapeHtml(deviceKind(d.name))} · ${escapeHtml(d.name)}</option>`).join("");
+  }
+  $("devWarn").innerHTML = s.outputDeviceAvailable === false
+    ? `<div class="banner warn"><span class="bi">!</span><div><b>${t("dev.disconnected")}</b>${t("dev.disconnectedHint")}</div></div>` : "";
+  $("capDev").textContent = capName;
+  $("sysDef").textContent = def ? def.name : "—";
+  $("devClock").textContent = s.renderer ? `${s.renderer.deviceRate} Hz` : "—";
+  $("consume").textContent = s.levels && s.levels.consumeRate ? `${Math.round(s.levels.consumeRate)} fps` : "—";
+  $("footOut").textContent = outName.length > 16 ? `${outName.slice(0, 16)}…` : outName;
+  $("footClk").textContent = s.renderer ? `${s.renderer.deviceRate} Hz` : "—";
+  $("footLat").textContent = s.latencyMs === null || s.latencyMs === undefined ? "—" : `${s.latencyMs} ms`;
+
+  const banners = [];
+  if (s.phase === "error" && s.lastError) {
+    banners.push(`<div class="banner err"><span class="bi">✕</span><div><b>${t("banner.errTitle")}</b>${escapeHtml(s.lastError)}<div class="acts"><button class="sm" onclick="document.getElementById('btnStart').click()">${t("banner.retry")}</button></div></div></div>`);
+  }
+  // 关键：默认设备仍指向 CABLE，但引擎没在跑 → 用户会「没声音」。必须醒目提示 + 一键处理。
+  const restoreFailed = s.lastRestore !== null && s.lastRestore !== undefined && s.lastRestore.ok !== true && s.lastRestore.manualRequired === true;
+  if (running !== true && (s.defaultIsCable === true || restoreFailed)) {
+    const target = (s.lastRestore && s.lastRestore.to) || (s.defaultSnapshot && s.defaultSnapshot.renderName) || s.config.outputDeviceName || "";
+    banners.push(`<div class="banner err"><span class="bi">!</span><div>
+      <b>${t("restore.title")}</b>${t("restore.body")}
+      ${target ? `<div style="margin-top:6px">${escapeHtml(t("restore.target", { name: target }))}</div>` : ""}
+      <div class="acts">
+        <button class="sm" onclick="openSoundSettings()">${t("restore.open")}</button>
+        <button class="sm" onclick="retryRestore()">${t("restore.retry")}</button>
+        <button class="sm" onclick="ackManual()">${t("restore.manual")}</button>
+      </div></div></div>`);
+  }
+  if (!s.deps.vcable.installed) {
+    banners.push(`<div class="banner warn"><span class="bi">!</span><div><b>${t("banner.noCableTitle")}</b>${t("banner.noCableBody")}
+      <div class="steps"><span class="step done">${t("banner.step1")}</span><span class="step now">${t("banner.step2")}</span><span class="step">${t("banner.step3")}</span><span class="step">${t("banner.step4")}</span></div>
+      <div class="acts"><button class="sm" onclick="location.reload()">${t("banner.reprobe")}</button><a href="https://vb-audio.com/Cable/" target="_blank" style="text-decoration:none"><button class="sm">${t("banner.download")}</button></a></div></div></div>`);
+  }
+  if (s.deps.ffmpeg === null) {
+    banners.push(`<div class="banner warn"><span class="bi">!</span><div><b>${t("banner.noFfmpegTitle")}</b>${t("banner.noFfmpegBody")}</div></div>`);
+  }
+  if (s.config.outputDeviceId === null || s.config.outputDeviceName === null) {
+    banners.push(`<div class="banner info"><span class="bi">i</span><div><b>${t("banner.pickTitle")}</b>${t("banner.pickBody")}<div class="acts"><button class="sm" onclick="document.querySelector('[data-page=device]').click()">${t("banner.pickGo")}</button></div></div></div>`);
+  }
+  $("banners").innerHTML = banners.join("");
+
+  $("aboutMode").textContent = s.singleFile ? t("about.modeSingle") : t("about.modeDev");
+  const dep = [
+    [t("dep.vcable"), s.deps.vcable.installed, s.deps.vcable.captureName ?? t("dep.notFoundCable")],
+    [t("dep.ffmpeg"), s.deps.ffmpeg !== null, s.deps.ffmpeg ?? t("dep.notFound")],
+    [t("dep.dshow"), s.deps.hasDshow === true, s.deps.hasDshow ? t("dep.ok") : t("dep.noDshow")],
+    [t("dep.endpoint"), s.deps.endpointTool === true, s.deps.endpointTool ? t("dep.ok") : t("dep.missing")],
+    [t("dep.render"), s.deps.renderTool === true, s.deps.renderTool ? t("dep.ok") : t("dep.missing")],
+  ];
+  $("depList").innerHTML = dep.map(([name, ok, note]) => `
+    <div class="dep-row">
+      <span class="mk" style="background:${ok ? "rgba(0,214,161,.16)" : "rgba(240,180,41,.16)"};color:${ok ? "var(--accent)" : "var(--warn)"}">${ok ? "✓" : "!"}</span>
+      <div style="flex:1;min-width:0"><div style="font-size:13px">${escapeHtml(name)}</div><div class="hint" style="font-family:var(--mono);word-break:break-all">${escapeHtml(String(note))}</div></div>
+    </div>`).join("");
+  $("cfgJson").textContent = JSON.stringify(s.config, null, 2);
+  if (document.activeElement !== $("autostart")) $("autostart").checked = s.launchAtLogin === true;
+  $("autostartNote").textContent = s.launchAtLogin ? t("about.autostartOn") : t("about.autostartOff");
+
+  if (activePage === "logs") void loadLogs();
+}
+
+/* ============================ 初始化 ============================ */
+(async function init() {
+  const s = await api("status");
+  if (s && s.ok === true) {
+    S = s;
+    const pref = s.config?.uiLang ?? "auto";
+    $("langSel").value = pref;
+    LANG = pref === "auto" ? ((navigator.language || "zh").toLowerCase().startsWith("zh") ? "zh" : "en") : pref;
+    if (s.config?.themeAuto === false) $("themeAuto").checked = false;
+  } else {
+    LANG = (navigator.language || "zh").toLowerCase().startsWith("zh") ? "zh" : "en";
+  }
+  applyTheme();
+  applyI18n();
+  drawTicks();
+  renderDial();
+  await refresh();
+  setInterval(refresh, 1200);
+})();
+</script>
+</body>
+</html>

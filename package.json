@@ -1,0 +1,69 @@
+{
+  "name": "432hz-player",
+  "version": "1.1.0",
+  "private": true,
+  "description": "432Hz 播放器：把系统音频实时转成 432Hz（保时长）后送到物理声卡播放。",
+  "type": "module",
+  "main": "desktop/main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "server": "node server.mjs",
+    "build:icon": "node scripts/make-icon.mjs",
+    "build:win": "electron-builder --win nsis --x64",
+    "build:portable": "electron-builder --win portable --x64",
+    "dist": "node scripts/make-icon.mjs && electron-builder --win nsis portable --x64"
+  },
+  "devDependencies": {
+    "electron": "31.7.5",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.hz432.player",
+    "productName": "432Hz Player",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "desktop/**/*",
+      "server.mjs",
+      "web/**/*",
+      "tools/*.exe",
+      "package.json",
+      "!432Hz播放器.exe",
+      "!release/**",
+      "!build/**",
+      "!archive/**",
+      "!**/*.md"
+    ],
+    "extraResources": [
+      { "from": "tools", "to": "tools", "filter": ["*.exe"] },
+      { "from": "assets", "to": "assets" }
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "assets/app.ico",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "requestedExecutionLevel": "asInvoker",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "432Hz Player",
+      "installerIcon": "assets/app.ico",
+      "uninstallerIcon": "assets/app.ico",
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
+    }
+  },
+  "license": "MIT"
+}

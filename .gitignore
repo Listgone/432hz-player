@@ -1,0 +1,28 @@
+# 依赖与构建产物
+node_modules/
+release/
+build/
+dist/
+
+# 单文件版产物（体积大，用 scripts/build-exe.mjs 现场生成）
+432Hz播放器.exe
+
+# 打包中间产物
+*.blob
+sea-config.json
+entry.cjs
+*.exe.bak
+
+# 本地配置与日志（绝不入库）
+.env
+.env.*
+*.log
+config.json
+*.local
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
