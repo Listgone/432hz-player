@@ -5,6 +5,7 @@ build/
 dist/
 
 # 单文件版产物（体积大，用 scripts/build-exe.mjs 现场生成）
+432hz-player-standalone.exe
 432Hz播放器.exe
 
 # 打包中间产物
@@ -12,6 +13,7 @@ dist/
 sea-config.json
 entry.cjs
 *.exe.bak
+RELEASE_NOTES.md
 
 # 本地配置与日志（绝不入库）
 .env
