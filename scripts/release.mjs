@@ -14,12 +14,11 @@
  *
  * 注意：
  *   - 需要 gh CLI 已登录（gh auth login）。
- *   - 私有仓库也能发 Release，但**第三方加速镜像无法代理私有内容**；
- *     仓库公开后加速链接才会生效（见 README「下载与加速」一节）。
- *   - 单文件版 exe 有 88MB，超过 GitHub 单文件 100MB 限制以内，可直接上传。
+ *   - 上传后可在 Release 页面核对三个附件与说明。
+ *   - 单文件版 exe 有 88MB，在 GitHub 单文件 100MB 限制以内，可直接上传。
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -33,8 +32,10 @@ const tagIndex = args.indexOf("--tag");
 const tag = tagIndex >= 0 ? args[tagIndex + 1] : `v${version}`;
 
 const run = (file, list, options = {}) => {
-	execFileSync(file, list, { stdio: "inherit", cwd: APP, shell: process.platform === "win32", ...options });
+	execFileSync(file, list, { stdio: "inherit", cwd: APP, ...options });
 };
+/** gh 命令统一在这里调用：Windows 下 .exe 可直接执行，不需要经 shell（避免多行参数被截断）。 */
+const runGh = (list) => run(process.platform === "win32" ? "gh.exe" : "gh", list);
 const note = (...a) => console.log("[release]", ...a);
 
 const RELEASE_DIR = join(APP, "release");
@@ -79,7 +80,7 @@ if (missing.length > 0) {
 }
 for (const p of artifacts) note(`产物 ${(statSync(p).size / 1048576).toFixed(1)} MiB  ${p}`);
 
-// 私有仓库：从 origin 推断仓库全名
+// 从 origin 推断仓库全名
 let repo = "";
 try {
 	repo = execFileSync("git", ["remote", "get-url", "origin"], { cwd: APP, encoding: "utf8" }).trim();
@@ -114,7 +115,7 @@ const notes = [
 	"",
 	"### 下载慢？",
 	"",
-	"见仓库 README 的「下载与加速」一节（第三方镜像，仅对公开仓库有效）。",
+	"下载慢可在原始链接前拼接镜像前缀加速，见 README 的「下载慢？」一节。",
 	"",
 	"### 校验",
 	"",
@@ -122,9 +123,12 @@ const notes = [
 	`- 打包时间：${new Date().toISOString()}`,
 ].join("\n");
 
+const notesFile = join(APP, "release", "RELEASE_NOTES.md");
+writeFileSync(notesFile, notes, "utf8");
+
 const exists = (() => {
 	try {
-		execFileSync("gh", ["release", "view", tag, "--repo", repoName], { stdio: "ignore" });
+		execFileSync(process.platform === "win32" ? "gh.exe" : "gh", ["release", "view", tag, "--repo", repoName], { stdio: "ignore" });
 		return true;
 	} catch {
 		return false;
@@ -132,16 +136,17 @@ const exists = (() => {
 })();
 
 if (exists) {
-	note(`Release ${tag} 已存在 → 上传（覆盖同名附件）`);
-	run("gh", ["release", "upload", tag, ...artifacts, "--clobber"]);
+	note(`Release ${tag} 已存在 → 更新说明并覆盖上传附件`);
+	runGh(["release", "edit", tag, "--repo", repoName, "--notes-file", notesFile, "--title", `432Hz 播放器 ${tag}`]);
+	runGh(["release", "upload", tag, "--repo", repoName, ...artifacts, "--clobber"]);
 } else {
 	note(`创建 Release ${tag}（${repoName}）`);
-	run("gh", ["release", "create", tag, ...artifacts, "--title", `432Hz 播放器 ${tag}`, "--notes", notes]);
+	runGh(["release", "create", tag, "--repo", repoName, "--title", `432Hz 播放器 ${tag}`, "--notes-file", notesFile, ...artifacts]);
 }
 
 note("完成。");
 try {
-	const url = execFileSync("gh", ["release", "view", tag, "--repo", repoName, "--json", "url", "--jq", ".url"], { encoding: "utf8" }).trim();
+	const url = execFileSync(process.platform === "win32" ? "gh.exe" : "gh", ["release", "view", tag, "--repo", repoName, "--json", "url", "--jq", ".url"], { encoding: "utf8" }).trim();
 	note("Release 地址：", url);
 } catch {
 	/* 忽略 */

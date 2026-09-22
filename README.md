@@ -3,16 +3,15 @@
 把电脑里正在播放的声音实时转成 **432Hz**（A4 440 → 432，−31.77 cent，**保时长**）后送到你的物理声卡。
 独立软件，双击图标即用；会自己把系统默认播放设备指向虚拟声卡并开始接管。
 
-**仓库**：<https://github.com/Listgone/432hz-player>（当前私有）
-
 ---
 
-## 下载与加速
+## 下载
 
-产物发布在 **GitHub Releases**：<https://github.com/Listgone/432hz-player/releases>
+产物发布在 **Releases** 页面（安装版 / 便携版 / 单文件版三个文件，任选其一）。
 
-国内直连 GitHub 下载大文件常常只有几十 KB/s。以下第三方镜像可用（实测 1.2 秒内响应），
-把原始链接**直接拼在镜像前缀后面**即可：
+### 下载慢？
+
+GitHub 直连在大陆常常只有几十 KB/s。可以在原始链接**前面拼接**一个镜像前缀来加速：
 
 ```text
 https://ghproxy.net/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432Hz%20Player-1.1.0-x64.exe
@@ -20,24 +19,17 @@ https://ghfast.top/https://github.com/Listgone/432hz-player/releases/download/v1
 https://gh-proxy.com/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432Hz%20Player-1.1.0-x64.exe
 ```
 
-| 镜像 | 实测 | 备注 |
-|---|---|---|
-| `ghproxy.net` | HTTP 200，约 1.0 s | 稳定，最常用 |
-| `ghfast.top` | HTTP 200，约 1.2 s | 备用 |
-| `gh-proxy.com` | HTTP 200，约 1.3 s | 备用 |
+| 镜像 | 实测 |
+|---|---|
+| `ghproxy.net` | HTTP 200，约 1.0 s |
+| `ghfast.top` | HTTP 200，约 1.2 s |
+| `gh-proxy.com` | HTTP 200，约 1.3 s |
 
-**重要**：第三方镜像**无法代理私有仓库**（它们无法携带你的登录凭据，会返回 404）。
-所以上面的加速链接**要等仓库转为公开（Public）之后才生效**；在此之前请直接 `git clone` /
-在 GitHub 网页下载（私有仓库的 Release 附件需要登录才能下）。
+其它方式：
 
-其它加速方式：
-
-- **Git clone 加速**：`git clone https://ghfast.top/https://github.com/Listgone/432hz-player.git`
-- **只取源码 zip**：`https://ghproxy.net/https://github.com/Listgone/432hz-player/archive/refs/heads/main.zip`
-- **自己搭一层**（更稳、可控）：Cloudflare Workers 反代，或自建 `gh-proxy`；
-  建议长期对外分发时用自建，别把主链路压在公共镜像上。
-
-> 镜像为第三方服务，可能限速、限流或下线。分发时建议在 Release 说明里同时给出「直连 + 两个镜像」。
+- **clone 加速**：`git clone https://ghfast.top/https://github.com/Listgone/432hz-player.git`
+- **源码 zip**：`https://ghproxy.net/https://github.com/Listgone/432hz-player/archive/refs/heads/main.zip`
+- 镜像为第三方服务，可能限速或下线；建议同时保留直连地址，或自建一层反代。
 
 ---
 
@@ -218,10 +210,7 @@ node scripts/release.mjs --tag v1.2.0   # 指定 tag
 ```
 
 发布脚本会：编译 C# 工具 → 生成图标 → 打 Electron 两个包 → 打单文件版 → `gh release create/upload`
-（已存在同名 Release 时用 `--clobber` 覆盖附件），并自动生成包含安装前提与校验信息的 Release 说明。
-
-> 仓库目前**私有**：Release 附件需要登录 GitHub 才能下载，第三方加速镜像也对私有内容无效。
-> 转公开后，README 里的加速链接即刻生效。
+（已存在同名 Release 时更新说明并覆盖附件），并自动生成包含安装前提与校验信息的 Release 说明。
 
 ## 目录结构
 
