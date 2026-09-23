@@ -122,7 +122,8 @@ if (!noBuild) {
 	run(process.execPath, [join(HERE, "make-icon.mjs")]);
 
 	note("3/5 打包 Electron（安装包 + 便携版）…");
-	run("npx", ["electron-builder", "--win", "nsis", "portable", "--x64"]);
+	// Windows 上 npx 是 .cmd，execFileSync 直接调用会 ENOENT；直接执行 electron-builder 的 CLI 入口最稳。
+	run(process.execPath, [join(APP, "node_modules", "electron-builder", "cli.js"), "--win", "nsis", "portable", "--x64"]);
 
 	note("4/5 打包单文件版…");
 	run(process.execPath, [join(HERE, "build-exe.mjs")]);
