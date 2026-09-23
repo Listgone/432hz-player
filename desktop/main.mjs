@@ -8,7 +8,7 @@
  *   4. 托盘：显示状态、快速启停、退出
  *   5. 把「打开数据目录 / 打开外链」交给系统 Shell
  */
-import { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, shell, dialog } from "electron";
+import { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen, shell, dialog } from "electron";
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
@@ -109,12 +109,47 @@ async function startServer() {
 }
 
 function createWindow() {
-	const log = (...a) => console.log("[main]", ...a);
+	const log = note;
+	/*
+	 * 默认尺寸 = 最小尺寸 = 1023×629（界面在此比例下布局完整）。
+	 * 目的：窗口不能再被压到更小，避免卡片被挤窄、文字截断（用户反馈过的"压缩后很难看"）。
+	 * 小屏保护：若显示器可用区域比这个还小，按屏幕缩放最小尺寸，防止窗口超出屏幕。
+	 */
+	const DESIGN_W = 1023;
+	const DESIGN_H = 629;
+	// 最小尺寸 = 设计尺寸：窗口不能再被压小（压小会让卡片挤窄、文字截断）
+	let minW = DESIGN_W;
+	let minH = DESIGN_H;
+	try {
+		const area = screen.getPrimaryDisplay().workAreaSize;
+		if (area.width < DESIGN_W + 40 || area.height < DESIGN_H + 40) {
+			// 显示器本身比设计尺寸还小 → 按屏幕等比放宽，否则窗口超出屏幕无法操作
+			const k = Math.min((area.width - 40) / DESIGN_W, (area.height - 90) / DESIGN_H, 1);
+			minW = Math.max(820, Math.floor(DESIGN_W * k));
+			minH = Math.max(560, Math.floor(DESIGN_H * k));
+			log(`屏幕可用区 ${area.width}×${area.height} 偏小，最小窗口放宽为 ${minW}×${minH}`);
+		}
+	} catch {
+		/* 取不到屏幕信息时用设计尺寸 */
+	}
+	// 尽量用设计尺寸开窗；屏幕放不下就等比缩到可用区
+	let winW = DESIGN_W;
+	let winH = DESIGN_H;
+	try {
+		const area = screen.getPrimaryDisplay().workAreaSize;
+		const k = Math.min(1, area.width / DESIGN_W, area.height / DESIGN_H);
+		winW = Math.max(minW, Math.floor(DESIGN_W * k));
+		winH = Math.max(minH, Math.floor(DESIGN_H * k));
+	} catch {
+		/* 保持设计尺寸 */
+	}
+
 	win = new BrowserWindow({
-		width: 1080,
-		height: 760,
-		minWidth: 880,
-		minHeight: 620,
+		width: winW,
+		height: winH,
+		minWidth: minW,
+		minHeight: minH,
+		useContentSize: true,
 		backgroundColor: "#0b0d12",
 		show: false,
 		autoHideMenuBar: true,
@@ -166,12 +201,36 @@ function createWindow() {
 	});
 	win.on("close", (event) => {
 		if (!quitting) {
+			// 关闭窗口 = 收进托盘（音频继续），同时从任务栏移除，只留托盘图标
 			event.preventDefault();
-			win.hide();
-			log("窗口收进托盘（音频继续）");
+			hideToTray();
+			log("窗口收进托盘（音频继续，任务栏不再显示）");
 		}
 	});
 	win.loadURL(BASE).catch((error) => log("loadURL 异常:", String(error?.message ?? error)));
+}
+
+/** 收起到托盘：隐藏窗口并从任务栏移除（只保留托盘图标）。 */
+function hideToTray() {
+	if (win === null || win.isDestroyed()) return;
+	try {
+		win.setSkipTaskbar(true);
+	} catch {
+		/* 某些平台不支持，忽略 */
+	}
+	win.hide();
+}
+
+/** 从托盘恢复：重新显示窗口并回到任务栏。 */
+function restoreFromTray() {
+	if (win === null || win.isDestroyed()) return;
+	try {
+		win.setSkipTaskbar(false);
+	} catch {
+		/* ignore */
+	}
+	win.show();
+	win.focus();
 }
 
 function createTray() {
@@ -179,7 +238,7 @@ function createTray() {
 	try {
 		const image = nativeImage.createFromPath(ICON);
 		tray = new Tray(image.isEmpty() ? nativeImage.createEmpty() : image.resize({ width: 16, height: 16 }));
-		tray.setToolTip("432Hz 播放器");
+		tray.setToolTip("432Hz 播放器（双击图标恢复窗口）");
 		const rebuild = async () => {
 			let running = false;
 			try {
@@ -191,7 +250,7 @@ function createTray() {
 			tray.setContextMenu(Menu.buildFromTemplate([
 				{ label: `432Hz 播放器 — ${running ? "已接管" : "未接管"}`, enabled: false },
 				{ type: "separator" },
-				{ label: "打开主界面", click: () => { win?.show(); win?.focus(); } },
+				{ label: "打开主界面", click: () => restoreFromTray() },
 				{
 					label: running ? "停止接管" : "开始接管",
 					click: async () => {
@@ -208,7 +267,7 @@ function createTray() {
 			]));
 		};
 		void rebuild();
-		tray.on("click", () => { win?.show(); win?.focus(); });
+		tray.on("click", () => restoreFromTray());
 		setInterval(() => void rebuild(), 4000);
 	} catch {
 		/* 托盘失败不影响主功能 */

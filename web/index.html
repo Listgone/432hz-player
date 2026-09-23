@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- 窗口/任务栏图标：单文件版用浏览器"应用窗口"承载界面，图标取自页面 favicon -->
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="shortcut icon" href="/favicon.ico" />
 <title>432Hz Player</title>
 <style>
   :root{
@@ -179,7 +182,9 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .toast.err{border-color:rgba(255,93,93,.5);color:var(--danger)}
 
-  @media (max-width:880px){.app{grid-template-columns:1fr};.side{display:none}.chain{grid-template-columns:1fr}.arrow{display:none}.metrics{grid-template-columns:1fr}}
+  /* 窄屏兜底：桌面外壳已把最小窗口锁在 1023×629，正常不会走到这里；
+     仅当在浏览器里直接访问（没有外壳约束）时才生效。 */
+  @media (max-width:820px){.app{grid-template-columns:1fr}.side{display:none}.chain{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics{grid-template-columns:1fr}}
 </style>
 </head>
 <body>

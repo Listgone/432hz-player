@@ -53,6 +53,14 @@ try {
 }
 /** 界面目录：web/index.html 可从 asar 内直接读取，无需额外处理。 */
 const WEB_DIR = join(APP_DIR, "web");
+/** 应用图标：优先 asar 外 resources/assets，其次应用目录 assets。 */
+const ICON_FILE = (() => {
+	const candidates = [];
+	if (PACKAGED_RESOURCES !== null) candidates.push(join(PACKAGED_RESOURCES, "assets", "app.ico"));
+	candidates.push(join(APP_DIR, "assets", "app.ico"));
+	for (const c of candidates) if (existsSync(c)) return c;
+	return null;
+})();
 const ENDPOINT_EXE = join(TOOLS_DIR, "AudioEndpoint.exe");
 const RENDER_EXE = join(TOOLS_DIR, "AudioRender.exe");
 const DATA_DIR = join(homedir(), ".432hz-player");
@@ -1432,6 +1440,19 @@ function serveStatic(res, pathname) {
 		res.end(readUiHtml());
 		return;
 	}
+	// 应用图标：单文件版用浏览器"应用窗口"承载界面，窗口/任务栏图标取自页面 favicon，
+	// 所以这个路由不能少（否则任务栏显示成通用浏览器图标）。
+	if (pathname === "/favicon.ico" || pathname === "/app.ico") {
+		const ico = ICON_FILE;
+		if (ico !== null && existsSync(ico)) {
+			res.writeHead(200, { "content-type": "image/x-icon", "cache-control": "public, max-age=86400" });
+			createReadStream(ico).pipe(res);
+			return;
+		}
+		res.writeHead(204);
+		res.end();
+		return;
+	}
 	const rel = normalize(pathname).replace(/^[\\/]+/, "");
 	const file = join(WEB_DIR, rel);
 	if (!file.startsWith(WEB_DIR) || !existsSync(file) || statSync(file).isDirectory()) {
@@ -1514,7 +1535,9 @@ async function openWindow(url) {
 		/* 查询失败则直接打开 */
 	}
 	try {
-		spawn(browser, [`--app=${url}`, "--window-size=980,1240"], { detached: true, stdio: "ignore" }).unref();
+		// 单文件版用浏览器应用窗口承载界面：默认尺寸与桌面版保持一致（1023×629），
+		// 界面在该比例下布局完整（信号链四格一排、文字不截断）。
+		spawn(browser, [`--app=${url}`, "--window-size=1023,629", "--window-position=120,80"], { detached: true, stdio: "ignore" }).unref();
 		return { ok: true, browser };
 	} catch (error) {
 		return { ok: false, error: String(error?.message ?? error) };
