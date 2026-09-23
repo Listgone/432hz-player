@@ -24,18 +24,17 @@
 在原始下载链接**前面拼接**镜像前缀即可加速，例如安装版：
 
 ```text
-https://ghproxy.net/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432hz-player-1.1.0-setup.exe
-https://ghfast.top/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432hz-player-1.1.0-setup.exe
-https://gh-proxy.com/https://github.com/Listgone/432hz-player/releases/download/v1.1.0/432hz-player-1.1.0-setup.exe
+https://ghproxy.net/https://github.com/Listgone/432hz-player/releases/download/v1.2.0/432hz-player-1.2.0-setup.exe
+https://ghfast.top/https://github.com/Listgone/432hz-player/releases/download/v1.2.0/432hz-player-1.2.0-setup.exe
 ```
 
-| 镜像 | 实测（HEAD） |
+| 镜像 | 最近实测 |
 |---|---|
-| `ghproxy.net` | 968 ms |
-| `ghfast.top` | 1030 ms |
-| `gh-proxy.com` | 887 ms |
+| `ghproxy.net` | 可用 |
+| `ghfast.top` | 可用 |
+| `gh-proxy.com` | 时好时坏，可作备选 |
 
-每次 `npm run release` 会重新探测这三个镜像并把结果写进 Release 说明；某个镜像失效就换另一个。
+镜像可用性会变。`npm run release` 每次发版都会重新探测并把当日结果写进对应 Release 的说明；遇到打不开就换一个。
 
 其它方式：
 
@@ -49,8 +48,8 @@ https://gh-proxy.com/https://github.com/Listgone/432hz-player/releases/download/
 
 | 形态 | 文件 | 适合 | 说明 |
 |---|---|---|---|
-| **桌面版（推荐）** | `release\432hz-player-1.1.0-setup.exe` | 分发给别人 / 长期使用 | 安装包（可自选目录、建桌面与开始菜单快捷方式）。Electron 外壳：独立应用窗口、托盘常驻、单实例、关闭窗口后音频继续 |
-| | `release\432hz-player-1.1.0-portable.exe` | 免安装试用 | 便携版，双击即跑，不写注册表 |
+| **桌面版（推荐）** | `release\432hz-player-1.2.0-setup.exe` | 分发给别人 / 长期使用 | 安装包（可自选目录、建桌面与开始菜单快捷方式）。Electron 外壳：独立应用窗口、托盘常驻、单实例、关闭窗口后音频继续 |
+| | `release\432hz-player-1.2.0-portable.exe` | 免安装试用 | 便携版，双击即跑，不写注册表 |
 | **单文件版** | `432hz-player-standalone.exe`（88 MB） | 最省事 / 拷来就用 | 自带 Node 运行时的单文件程序，**无控制台窗口**；界面由浏览器应用窗口承载 |
 
 三者功能与界面完全一致，共享同一份代码（`server.mjs` + `web/`），也共享同一份配置与日志。
