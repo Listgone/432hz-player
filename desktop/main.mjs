@@ -71,7 +71,13 @@ async function startServer() {
 		const mod = await import(pathToFileURL(serverPath).href);
 		note("import OK, exports=", Object.keys(mod).join(","), "hasStartServer=", typeof mod.startServer);
 		if (typeof mod.startServer === "function") {
-			const result = await mod.startServer({ port: PORT, root: ROOT, openWindow: false });
+			const result = await mod.startServer({
+				port: PORT,
+				root: ROOT,
+				openWindow: false,
+				// 开机自启用外壳自己的 exe（而不是 electron.exe），并静默启动到托盘
+				autoStartTarget: { exe: process.execPath, args: "--silent" },
+			});
 			note("in-process startServer →", JSON.stringify({ ok: result.ok, port: result.port, error: result.error }));
 			server = result;
 			return result;
@@ -162,8 +168,11 @@ function createWindow() {
 			spellcheck: false,
 		},
 	});
+	// 开机自启（--silent）：直接进托盘，不弹窗
+	const silent = process.argv.includes("--silent");
 	let shown = false;
 	const reveal = (why) => {
+		if (silent) return;
 		if (shown || win === null || win.isDestroyed()) return;
 		shown = true;
 		log("窗口显示:", why);
@@ -177,22 +186,10 @@ function createWindow() {
 		log("加载失败:", code, desc, url);
 		setTimeout(() => void win?.loadURL(BASE), 800);
 	});
-	// 兜底：3 秒后无论渲染状态如何都显示窗口；若窗口仍不可见，退回浏览器应用窗口保证用户能看到界面
-	setTimeout(() => {
-		reveal("timeout");
-		setTimeout(async () => {
-			if (win === null || win.isDestroyed()) return;
-			if (win.isVisible()) return;
-			log("Electron 窗口不可见，回退为浏览器应用窗口");
-			try {
-				await fetch(`${BASE}/api/open-window`, { method: "POST" });
-				quitting = true;
-				app.quit();
-			} catch {
-				/* 保持现状 */
-			}
-		}, 1500);
-	}, 3000);
+	// 兜底：3 秒后仍未见 ready-to-show / did-finish-load 事件时，强制显示窗口。
+	// 注意：这里不再做"不可见就退出转浏览器"的回退 —— 那个逻辑在无显示器/虚拟会话下
+	// 会误判（isVisible 恒为 false）并把主程序杀掉，属于坏设计，已移除。
+	setTimeout(() => reveal("timeout"), 3000);
 
 	// 外链走系统浏览器，不在应用内打开
 	win.webContents.setWindowOpenHandler(({ url }) => {

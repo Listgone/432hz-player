@@ -1470,10 +1470,14 @@ function serveStatic(res, pathname) {
 const STARTUP_DIR = join(process.env.APPDATA ?? homedir(), "Microsoft", "Windows", "Start Menu", "Programs", "Startup");
 const SHORTCUT = join(STARTUP_DIR, "432Hz 播放器.lnk");
 
-/** 本程序的可执行文件（单文件 exe 时就是自己）。 */
-const selfExe = () => process.execPath;
-/** 单文件 exe 无参数；开发模式需要带脚本路径。 */
-const selfArgs = () => (SINGLE_FILE ? "" : `"${join(APP_DIR, "server.mjs")}"`);
+/**
+ * 本程序的可执行文件：单文件 exe 是自己；被 Electron 外壳内嵌时要用外壳的 exe
+ * （process.execPath 会是 electron.exe / 应用 exe，不能用它去跑 server.mjs）。
+ */
+let autoStartTarget = null;
+const selfExe = () => autoStartTarget?.exe ?? process.execPath;
+/** 单文件 exe 无参数；源码模式需要带脚本路径；Electron 外壳不带参数。 */
+const selfArgs = () => autoStartTarget?.args ?? (SINGLE_FILE ? "" : `"${join(APP_DIR, "server.mjs")}"`);
 const autoStartEnabled = () => existsSync(SHORTCUT);
 
 /** 写入/移除开机自启快捷方式（PowerShell + WScript.Shell 创建 .lnk）。 */
@@ -1694,6 +1698,9 @@ export async function startServer(options = {}) {
 	const shouldOpenWindow = options.openWindow !== false;
 	const attach = options.attachStreams ?? SINGLE_FILE;
 
+	if (options.autoStartTarget !== undefined && options.autoStartTarget !== null) {
+		autoStartTarget = options.autoStartTarget;
+	}
 	if (attach) {
 		const attached = reattachStdStreamsToLog();
 		log(`stdout/stderr → 日志文件：${attached ? "已重定向" : "重定向失败（log() 内部 try/catch 兜底）"}`);

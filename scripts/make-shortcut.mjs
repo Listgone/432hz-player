@@ -1,21 +1,39 @@
 #!/usr/bin/env node
 /**
- * 生成快捷方式：桌面 + 开始菜单，指向 dist 里的 432Hz播放器.exe，并带上自定义图标。
- * 图标只能由快捷方式承载（不改 PE，见 scripts/build-exe.mjs 说明）。
+ * 生成快捷方式：桌面 + 开始菜单，并带上自定义图标。
+ *
+ * 优先指向 **Electron 桌面版**（release 里的便携版），原因：
+ *   - 窗口/任务栏使用应用自己的图标（单文件版由 Chrome 承载界面，任务栏只能是浏览器图标）
+ *   - 关闭窗口 = 收进托盘，不在任务栏占位
+ * 若 Electron 产物不存在，则退回单文件版（功能可用，但任务栏图标是浏览器的）。
  *
  * 用法：node scripts/make-shortcut.mjs [--remove]
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const APP = resolve(HERE, "..");
-const EXE = join(APP, "432hz-player-standalone.exe");
 const ICO = join(APP, "assets", "app.ico");
 const NAME = "432Hz 播放器.lnk";
+
+/** 在 release/ 里找最新一版便携版（优先 Electron，图标与托盘行为正确）。 */
+function findPortable() {
+	const dir = join(APP, "release");
+	if (!existsSync(dir)) return null;
+	const found = readdirSync(dir)
+		.filter((f) => /^432hz-player-[\d.]+-portable\.exe$/.test(f))
+		.map((f) => ({ f, v: f.match(/(\d+\.\d+\.\d+)/)?.[1] ?? "0.0.0" }))
+		.sort((a, b) => b.v.localeCompare(a.v, undefined, { numeric: true }));
+	return found.length > 0 ? join(dir, found[0].f) : null;
+}
+
+const portable = findPortable();
+const standalone = join(APP, "432hz-player-standalone.exe");
+const EXE = portable ?? (existsSync(standalone) ? standalone : null);
 
 const targets = [
 	join(homedir(), "Desktop", NAME),
@@ -36,10 +54,11 @@ if (remove) {
 	process.exit(0);
 }
 
-if (!existsSync(EXE)) {
-	console.error("找不到 exe:", EXE, "\n请先运行 npm run build:exe");
+if (EXE === null) {
+	console.error("找不到可执行文件：请先运行 npm run dist（或 node scripts/build-exe.mjs）");
 	process.exit(1);
 }
+console.log("快捷方式目标:", EXE, portable !== null ? "（Electron 桌面版）" : "（单文件版：任务栏图标为浏览器图标）");
 
 /** 用 PowerShell 的 WScript.Shell 创建 .lnk */
 function createShortcut(path) {
