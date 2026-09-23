@@ -24,9 +24,12 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%}
+  /* 全屏/大屏等比放大：整页随窗口尺寸缩放，放大后不会只占左上角一小块。
+     基准约 1080p 时为 1:1（~15px 根字号），窗口更大则同比放大。 */
+  html{font-size:clamp(13px, 0.55vw + 9.2px, 20px)}
   body{
     margin:0;background:var(--bg);color:var(--fg);
-    font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI Variable","Segoe UI","Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+    font:1rem/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI Variable","Segoe UI","Microsoft YaHei UI","Microsoft YaHei",sans-serif;
     -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none;overflow:hidden;
   }
   ::-webkit-scrollbar{width:10px;height:10px}
@@ -49,18 +52,28 @@
   .side-foot{margin-top:auto;padding:12px 10px 0;border-top:1px solid var(--line-soft);font-size:11px;color:var(--fg-3);line-height:1.8}
   .side-foot .k{color:var(--fg-2);font-family:var(--mono)}
 
-  .main{overflow-y:auto;padding:20px 24px 36px}
-  .page{display:none;flex-direction:column;gap:16px;max-width:900px}
+  .main{overflow-y:auto;padding:1.4rem 1.7rem 2.4rem}
+  /* 页面宽度随窗口伸展：常规窗口约 900px 宽便于阅读，大屏/全屏则铺满并改双列，
+     避免「全屏后内容还挤在左上角」的观感。 */
+  .page{display:none;flex-direction:column;gap:1.05rem;max-width:56rem;width:100%}
   .page.active{display:flex}
+  /* 大屏（常见 1440 及以上）：主页与设备页改双列，充分利用横向空间 */
+  @media (min-width:1200px){
+    .page{max-width:100%}
+    .page.wide{display:none}
+    .page.wide.active{display:grid;grid-template-columns:minmax(23rem,1.15fr) minmax(0,1fr);gap:1.05rem;align-items:start}
+    .page.wide.active > .page-head{grid-column:1 / -1}
+    .page.wide.active > .span-2{grid-column:1 / -1}
+  }
   .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
-  .page-head h1{margin:0;font-size:20px;font-weight:650;letter-spacing:.2px}
-  .page-head p{margin:3px 0 0;font-size:12.5px;color:var(--fg-3)}
+  .page-head h1{margin:0;font-size:1.32rem;font-weight:650;letter-spacing:.2px}
+  .page-head p{margin:3px 0 0;font-size:.8rem;color:var(--fg-3)}
 
-  .card{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
-  .card.tight{padding:14px 16px}
-  .card-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
-  .card-h h2{margin:0;font-size:13px;font-weight:620;color:var(--fg-2);letter-spacing:.03em}
-  .hint{font-size:12px;color:var(--fg-3)}
+  .card{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);padding:1.15rem;box-shadow:var(--shadow)}
+  .card.tight{padding:.9rem 1rem}
+  .card-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:.85rem}
+  .card-h h2{margin:0;font-size:.84rem;font-weight:620;color:var(--fg-2);letter-spacing:.03em}
+  .hint{font-size:.76rem;color:var(--fg-3)}
 
   .hero{background:radial-gradient(120% 140% at 100% 0%,var(--accent-dim) 0%,transparent 46%),var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:18px}
   .hero-top{display:flex;align-items:center;gap:14px}
@@ -96,18 +109,20 @@
   .seg button{border:0;background:transparent;padding:6px 12px;border-radius:8px;color:var(--fg-2);font-size:12.5px}
   .seg button.on{background:var(--accent-dim);color:var(--accent);font-weight:600}
 
-  .chain{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:center;gap:8px}
-  .chain-node{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:12px;min-height:78px;display:flex;flex-direction:column;gap:5px;transition:background .16s}
+  /* 信号链：四节点等宽等高（避免「捕获」那格被长设备名撑高）。
+     节点数固定为 4 时用 auto-fit，窄容器自动折成 2×2，不会把文字挤成一列。 */
+  .chain{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch;gap:.6rem}
+  @container (max-width: 46rem){ .chain{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  .chain-node{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:.8rem;min-height:5.6rem;display:flex;flex-direction:column;gap:.3rem;transition:background .16s;overflow:hidden}
   .chain-node:hover{background:var(--card-hover)}
-  .chain-node .top{display:flex;align-items:center;gap:6px}
+  .chain-node .top{display:flex;align-items:center;gap:6px;flex:0 0 auto}
   .chain-node .dot{width:7px;height:7px;border-radius:50%;background:var(--fg-3);flex:0 0 auto}
   .chain-node .dot.ok{background:var(--accent);box-shadow:0 0 6px var(--accent)}
   .chain-node .dot.warn{background:var(--warn)}
   .chain-node .dot.err{background:var(--danger)}
-  .chain-node .lb{font-size:11px;color:var(--fg-3);letter-spacing:.04em}
-  .chain-node .vv{font-size:12.5px;line-height:1.4;word-break:break-word}
-  .chain-node .dd{font-size:11px;color:var(--fg-3);font-family:var(--mono)}
-  .arrow{color:var(--line);font-size:15px}
+  .chain-node .lb{font-size:.7rem;color:var(--fg-3);letter-spacing:.04em;white-space:nowrap}
+  .chain-node .vv{font-size:.82rem;line-height:1.35;word-break:break-word;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .chain-node .dd{font-size:.7rem;color:var(--fg-3);font-family:var(--mono);margin-top:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   .dial-wrap{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
   .dial{position:relative;width:206px;height:206px;flex:0 0 auto;touch-action:none;cursor:grab}
@@ -173,7 +188,7 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .toast.err{border-color:rgba(255,93,93,.5);color:var(--danger)}
 
-  @media (max-width:880px){.app{grid-template-columns:1fr}.side{display:none}.chain{grid-template-columns:1fr}.arrow{display:none}.metrics{grid-template-columns:1fr}}
+  @media (max-width:880px){.app{grid-template-columns:1fr};.side{display:none}.chain{grid-template-columns:1fr}.arrow{display:none}.metrics{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -202,7 +217,7 @@
 
   <main class="main">
     <!-- 总览 -->
-    <section class="page active" id="page-home">
+    <section class="page wide active" id="page-home">
       <div class="page-head">
         <div><h1 data-i18n="home.title">总览</h1><p data-i18n="home.sub">把系统正在播放的声音转成 432Hz 后送到物理声卡</p></div>
       </div>
@@ -226,11 +241,8 @@
         <div class="card-h"><h2 data-i18n="chain.title">信号链</h2><span class="hint" id="chainHint">—</span></div>
         <div class="chain">
           <div class="chain-node"><div class="top"><span class="dot" id="d1"></span><span class="lb" data-i18n="chain.n1">01 系统音源</span></div><div class="vv" id="v1">—</div><div class="dd" id="x1"></div></div>
-          <div class="arrow">→</div>
           <div class="chain-node"><div class="top"><span class="dot" id="d2"></span><span class="lb" data-i18n="chain.n2">02 捕获</span></div><div class="vv" id="v2">—</div><div class="dd" id="x2"></div></div>
-          <div class="arrow">→</div>
           <div class="chain-node"><div class="top"><span class="dot" id="d3"></span><span class="lb" data-i18n="chain.n3">03 变调</span></div><div class="vv" id="v3">—</div><div class="dd" id="x3"></div></div>
-          <div class="arrow">→</div>
           <div class="chain-node"><div class="top"><span class="dot" id="d4"></span><span class="lb" data-i18n="chain.n4">04 输出</span></div><div class="vv" id="v4">—</div><div class="dd" id="x4"></div></div>
         </div>
       </div>
@@ -282,7 +294,7 @@
     </section>
 
     <!-- 设备 -->
-    <section class="page" id="page-device">
+    <section class="page wide" id="page-device">
       <div class="page-head">
         <div><h1 data-i18n="dev.title">设备</h1><p data-i18n="dev.sub">选择输出到哪个物理声卡；新接上的设备会自动出现</p></div>
         <div class="toolbar"><button class="sm" id="btnRefresh" data-i18n="dev.rescan">重新扫描设备</button></div>
@@ -291,6 +303,13 @@
         <div class="card-h"><h2 data-i18n="dev.outTitle">输出设备（物理扬声器 / 耳机）</h2><span class="hint" id="devCount">—</span></div>
         <select id="outSel"></select>
         <div class="hint" style="margin-top:10px" data-i18n="dev.outHint">列表只显示当前可用的物理输出设备，已排除虚拟声卡。连接蓝牙耳机后约 2 秒内会出现，直接选择即可切换输出。</div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+          <label class="switch">
+            <input type="checkbox" id="autoSwitch" /><span class="track"></span>
+            <span data-i18n="dev.autoSwitch">自动切换输出设备：耳机连上自动切过去，耳机断开自动回扬声器</span>
+          </label>
+          <div class="hint" id="volNote"></div>
+        </div>
         <div id="devWarn" style="margin-top:12px"></div>
       </div>
       <div class="card tight">
@@ -380,6 +399,11 @@ const I18N = {
     "dev.outTitle":"输出设备（物理扬声器 / 耳机）","dev.outHint":"列表只显示当前可用的物理输出设备，已排除虚拟声卡。连接蓝牙耳机后约 2 秒内会出现，直接选择即可切换输出。",
     "dev.chainTitle":"链路设备","dev.capture":"捕获（录音端）","dev.systemDefault":"系统默认播放","dev.renderClock":"渲染时钟","dev.consume":"消费速率",
     "dev.disconnected":"当前输出设备已断开","dev.disconnectedHint":"请在上方重新选择（蓝牙设备断开后通常会从列表消失，重新连上后约 2 秒自动回来）。",
+    "dev.autoSwitch":"自动切换输出设备：耳机连上自动切过去，耳机断开自动回扬声器",
+    "dev.volFixed":"已把虚拟声卡音量校正为 100%（原来 {before}%），声音不再被压低。",
+    "dev.volOk":"虚拟声卡已处于 100%，音量不会被压低。",
+    "dev.volUnknown":"未能校正虚拟声卡音量（可手动到系统声音设置里把 CABLE Input 调到 100%）。",
+    "dev.autoSwitched":"已自动切换输出设备：{name}",
     "dev.available":"{n} 个可用","dev.none":"（未检测到可用物理输出设备）",
     "kind.speaker":"扬声器","kind.headphone":"耳机","kind.monitor":"显示器","kind.digital":"数字输出","kind.other":"播放设备",
     "logs.title":"运行日志","logs.sub":"后台运行数据，便于排查问题；也可导出成文件","logs.refresh":"刷新","logs.copy":"复制","logs.export":"导出日志",
@@ -428,6 +452,11 @@ const I18N = {
     "dev.outTitle":"Output device (speakers / headphones)","dev.outHint":"Only currently available physical outputs are listed (virtual cables excluded). A Bluetooth headset shows up within ~2 seconds of connecting — just pick it.",
     "dev.chainTitle":"Chain devices","dev.capture":"Capture (recording side)","dev.systemDefault":"System default output","dev.renderClock":"Render clock","dev.consume":"Consume rate",
     "dev.disconnected":"Selected output device is disconnected","dev.disconnectedHint":"Please pick another one above (Bluetooth devices disappear when disconnected and come back within ~2 seconds once reconnected).",
+    "dev.autoSwitch":"Switch output automatically: use headphones when connected, fall back to speakers when they disconnect",
+    "dev.volFixed":"Virtual cable volume normalized to 100% (was {before}%) — audio is no longer attenuated.",
+    "dev.volOk":"Virtual cable is already at 100%; volume is not attenuated.",
+    "dev.volUnknown":"Could not normalize the virtual cable volume (set CABLE Input to 100% in Windows sound settings manually).",
+    "dev.autoSwitched":"Output switched automatically: {name}",
     "dev.available":"{n} available","dev.none":"(no available physical output device found)",
     "kind.speaker":"Speaker","kind.headphone":"Headphones","kind.monitor":"Monitor","kind.digital":"Digital","kind.other":"Output",
     "logs.title":"Logs","logs.sub":"Background runtime data for troubleshooting — exportable","logs.refresh":"Refresh","logs.copy":"Copy","logs.export":"Export log",
@@ -477,7 +506,7 @@ function applyI18n() {
 /* ============================ 工具 ============================ */
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-let S = null, dialLocal = 432, abHeld = false, busy = false, activePage = "home";
+let S = null, dialLocal = 432, abHeld = false, busy = false, activePage = "home", lastOutputName = null;
 const DESKTOP = typeof window.desktop !== "undefined";
 
 async function api(path, body) {
@@ -650,6 +679,7 @@ bindRange("buf", "bufVal", (v) => `${v} ms`, (v) => ({ bufferMs: v }));
 $("hq").addEventListener("change", (e) => void commit({ highQuality: e.target.checked }));
 $("btnRefresh").addEventListener("click", async () => { await api("devices", {}); await refresh(); toast(t("msg.rescanned")); });
 $("outSel").addEventListener("change", () => void commit({ outputDeviceId: $("outSel").value || null }));
+$("autoSwitch").addEventListener("change", (e) => void commit({ autoSwitchOutput: e.target.checked }));
 $("langSel").addEventListener("change", async (e) => {
   const v = e.target.value;
   await commit({ uiLang: v });
@@ -784,6 +814,20 @@ async function refresh() {
   }
   $("devWarn").innerHTML = s.outputDeviceAvailable === false
     ? `<div class="banner warn"><span class="bi">!</span><div><b>${t("dev.disconnected")}</b>${t("dev.disconnectedHint")}</div></div>` : "";
+
+  // 自动切换开关 + 音量校正状态
+  if (document.activeElement !== $("autoSwitch")) $("autoSwitch").checked = s.config.autoSwitchOutput !== false;
+  const vf = s.volumeFix;
+  $("volNote").textContent = vf === null || vf === undefined
+    ? ""
+    : (vf.ok === true
+      ? (vf.before !== null && vf.before !== undefined && vf.before < 100 ? t("dev.volFixed", { before: vf.before }) : t("dev.volOk"))
+      : t("dev.volUnknown"));
+  // 自动切换发生时给一次提示（对比上次看到的输出设备名）
+  if (lastOutputName !== null && s.config.outputDeviceName !== lastOutputName && s.running === true) {
+    toast(t("dev.autoSwitched", { name: s.config.outputDeviceName ?? "" }));
+  }
+  lastOutputName = s.config.outputDeviceName ?? null;
   $("capDev").textContent = capName;
   $("sysDef").textContent = def ? def.name : "—";
   $("devClock").textContent = s.renderer ? `${s.renderer.deviceRate} Hz` : "—";

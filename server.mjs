@@ -256,6 +256,104 @@ const looksLikeCable = (text) => {
 };
 /** 端点是否为虚拟声卡（同时看 name 与 adapter，例如 VB-CABLE A+B 的 "CABLE In 16ch"）。 */
 const isVirtualEndpoint = (endpoint) => looksLikeCable(endpoint?.name) || looksLikeCable(endpoint?.adapter);
+
+/**
+ * 设备优先级：用户插着耳机时几乎总是想用耳机。
+ * 得分越小越优先：耳机/蓝牙(1) < 扬声器(2) < 其它(3)；同档优先系统默认，再按原顺序。
+ */
+function scoreOutput(endpoint, isSystemDefault) {
+	const text = `${endpoint?.name ?? ""} ${endpoint?.adapter ?? ""}`.toLowerCase();
+	const headset = /耳机|耳麦|headphone|headset|earbud|airpod|buds|a2dp|hands-free/.test(text);
+	const speaker = /扬声器|speaker|realtek|edifier|hdmi|display|monitor|line out/.test(text);
+	const rank = headset ? 1 : speaker ? 2 : 3;
+	return rank * 10 + (isSystemDefault ? 0 : 1);
+}
+
+/** 从可用物理设备里挑最优：耳机优先 → 系统默认 → 扬声器。 */
+function pickBestOutput(list, systemDefaultId) {
+	const candidates = (list ?? []).filter((item) => !isVirtualEndpoint(item));
+	if (candidates.length === 0) return null;
+	let best = null;
+	let bestScore = Number.POSITIVE_INFINITY;
+	for (const item of candidates) {
+		const score = scoreOutput(item, item.id === systemDefaultId);
+		if (score < bestScore) {
+			bestScore = score;
+			best = item;
+		}
+	}
+	return best;
+}
+
+// ---------------------------------------------------------------------------
+// 端点音量 / 通信闪避
+// ---------------------------------------------------------------------------
+
+/** PowerShell 片段：把指定端点音量设为 100% 并取消静音（Core Audio IAudioEndpointVolume）。 */
+const PS_SET_VOLUME = `
+$src = @'
+using System;using System.Runtime.InteropServices;
+[Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] public class E {}
+[Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IEnum { int EnumAudioEndpoints(int f,int m,out IntPtr c); int GetDefaultAudioEndpoint(int f,int r,out Dev d); int GetDevice(string id, out Dev d); }
+[Guid("D666063F-1587-4E43-81F1-B948E807363F"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface Dev { int Activate(ref Guid iid,int ctx,IntPtr p,out IntPtr o); int OpenPropertyStore(int a,out IntPtr p); int GetId([MarshalAs(UnmanagedType.LPWStr)] out string id); int GetState(out int s); }
+[Guid("5CDF2C82-841E-4546-9722-0CF74078229A"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IVol {
+ int RegisterControlChangeNotify(IntPtr n); int UnregisterControlChangeNotify(IntPtr n);
+ int GetChannelCount(out int c); int SetMasterVolumeLevel(float l, ref Guid g); int SetMasterVolumeLevelScalar(float l, ref Guid g);
+ int GetMasterVolumeLevel(out float l); int GetMasterVolumeLevelScalar(out float l);
+ int SetChannelVolumeLevel(uint ch, float l, ref Guid g); int SetChannelVolumeLevelScalar(uint ch, float l, ref Guid g);
+ int GetChannelVolumeLevel(uint ch, out float l); int GetChannelVolumeLevelScalar(uint ch, out float l);
+ int SetMute([MarshalAs(UnmanagedType.Bool)] bool m, ref Guid g); int GetMute([MarshalAs(UnmanagedType.Bool)] out bool m); }
+public static class V {
+  public static string Set(string id,float scalar){
+    var en=(IEnum)Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")));
+    Dev d; if(en.GetDevice(id,out d)!=0) return "GetDevice failed";
+    var iv=new Guid("5CDF2C82-841E-4546-9722-0CF74078229A"); IntPtr o;
+    if(d.Activate(ref iv,23,IntPtr.Zero,out o)!=0) return "Activate failed";
+    var v=(IVol)Marshal.GetObjectForIUnknown(o); var g=Guid.Empty; float before;
+    v.GetMasterVolumeLevelScalar(out before);
+    v.SetMasterVolumeLevelScalar(scalar, ref g); v.SetMute(false, ref g);
+    return "was " + (before*100).ToString("0") + "% -> " + (scalar*100).ToString("0") + "%";
+  }
+}
+'@
+Add-Type -TypeDefinition $src -Language CSharp -ErrorAction SilentlyContinue
+[V]::Set('__DEVICE_ID__', __SCALAR__)
+`;
+
+/**
+ * 把端点音量设为 100%。
+ * 为什么必须做：VB-CABLE 的 CABLE Input 常被设为 ~50%，声音进虚拟声卡时被砍半，
+ * 用户听感就是「接了虚拟声卡之后声音小很多」。设为 100% 才是透明直通。
+ */
+async function ensureEndpointVolumeFull(endpointId, label) {
+	if (endpointId === null || endpointId === undefined) return { ok: false, error: "no endpoint" };
+	const script = PS_SET_VOLUME.replace("__DEVICE_ID__", String(endpointId).replace(/'/g, "''")).replace("__SCALAR__", "1.0");
+	const out = await runSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script], 25000);
+	const text = `${out.stdout}${out.stderr}`.trim().split(/\r?\n/).filter(Boolean).pop() ?? "";
+	if (out.code === 0 && text.includes("->")) {
+		log(`音量校正（${label}）：${text}`);
+		const m = /was (\d+)%/.exec(text);
+		return { ok: true, before: m ? Number(m[1]) : null, note: text };
+	}
+	log(`音量校正失败（${label}）：${text || String(out.stderr).slice(-120)}`);
+	return { ok: false, error: text || "unknown" };
+}
+
+/**
+ * 关闭「通信活动时降低其它声音」（ducking）。
+ * 本软件会长期占用录音端点，若开着 ducking，其它程序出声时 Windows 会压低音量（忽大忽小）。
+ * 0 = 不执行任何操作。
+ */
+async function disableCommunicationsDucking() {
+	const out = await runSync("reg.exe", [
+		"add", "HKCU\\Software\\Microsoft\\Multimedia\\Audio",
+		"/v", "UserDuckingPreference", "/t", "REG_DWORD", "/d", "0", "/f",
+	], 12000);
+	return out.code === 0;
+}
 const readJson = (path, fallback = null) => {
 	try {
 		return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : fallback;
@@ -440,12 +538,71 @@ async function refreshDevicesIfStale() {
 			deps.endpointTool = next.endpointTool;
 		}
 		ok = true;
+		// 设备变化后尝试自动热切换（耳机插拔的核心体验）
+		await maybeAutoSwitchOutput();
 	} catch {
 		/* 刷新失败不影响已有 deps */
 	} finally {
 		devicesRefreshing = false;
 	}
 	return ok;
+}
+
+/**
+ * 输出设备自动热切换：
+ *   1. 当前选的设备消失（蓝牙断开/拔线）→ 立刻换到「耳机优先」的最佳可用设备
+ *   2. 当前用的不是耳机，而系统里出现了耳机（蓝牙刚连上）→ 自动切到耳机
+ *   3. 用户手动选过且该设备仍可用 → 绝不打扰
+ * 切换后若引擎在跑，会自动重启引擎让声音无缝转到新设备。
+ */
+async function maybeAutoSwitchOutput() {
+	if (config.autoSwitchOutput === false) return; // 用户关掉了自动切换
+	const physical = physicalRender();
+	if (physical.length === 0) return;
+	const currentId = config.outputDeviceId;
+	const current = physical.find((item) => item.id === currentId) ?? null;
+	const defId = deps?.defaultRender?.id ?? null;
+	const best = pickBestOutput(physical, defId);
+	if (best === null) return;
+
+	const manual = runtime.manualOutputId;
+	const currentRank = current === null ? Number.POSITIVE_INFINITY : scoreOutput(current, current.id === defId);
+	const bestRank = scoreOutput(best, best.id === defId);
+
+	let reason = null;
+	let target = null;
+	if (currentId !== null && current === null) {
+		// 设备没了
+		target = best;
+		reason = "当前输出设备已断开";
+	} else if (currentId === null) {
+		target = best;
+		reason = "尚未选择输出设备";
+	} else if (manual !== true && bestRank < currentRank) {
+		// 出现了更优先的设备（通常是耳机刚连上），且用户没手动锁定过
+		target = best;
+		reason = "检测到更优先的设备（耳机）";
+	}
+	if (target === null || target.id === currentId) return;
+
+	const before = config.outputDeviceName;
+	config.outputDeviceId = target.id;
+	config.outputDeviceName = target.name;
+	saveConfig();
+	// 用户在界面主动选过 → 视为手动锁定；自动切换不重置该标记
+	log(`输出自动切换：${reason}，${before ?? "（无）"} → ${target.name}`);
+
+	const wasRunning = runtime.producer !== null;
+	if (wasRunning && runtime.restarting !== true) {
+		try {
+			runtime.restarting = true;
+			await stopEngine("设备热切换");
+			const report = await startEngine("设备热切换");
+			runtime.lastError = report.ok === true ? null : (report.error ?? null);
+		} finally {
+			runtime.restarting = false;
+		}
+	}
 }
 
 /** 设备枚举状态（导出到 /api/status 与日志里，供界面/排障判断列表是否新鲜）。 */
@@ -568,6 +725,12 @@ const defaults = {
 	launchAtLogin: false,
 	/** 接管前的系统默认播放设备快照（落盘，供崩溃后自愈与停止还原） */
 	defaultDeviceSnapshot: null,
+	/** 接管时把虚拟声卡端点音量校正到 100%（修「接了虚拟声卡声音变小」） */
+	normalizeVolume: true,
+	/** 关闭 Windows 通信闪避，避免音量忽大忽小 */
+	disableDucking: true,
+	/** 输出设备自动热切换（耳机优先）：耳机连上自动切过去、断开自动回扬声器 */
+	autoSwitchOutput: true,
 };
 const saved = readJson(CONFIG_FILE, {}) ?? {};
 const config = { ...defaults, ...(saved.config ?? {}) };
@@ -593,6 +756,8 @@ const runtime = {
 	defaultSnapshot: null,
 	/** 最近一次停止时的还原结果（UI 展示 + 排障）。 */
 	lastRestore: null,
+	/** 用户是否在界面手动选过输出设备（选过就不再自动热切换，避免打扰）。 */
+	manualOutputId: false,
 };
 
 // 载入上次落盘的快照：程序崩溃/被强杀时，下次启动就能把默认设备换回去。
@@ -669,6 +834,18 @@ async function startEngine(reason = "manual") {
 			}
 		}
 	}
+
+	// 音量透明化：把虚拟声卡端点调到 100%，并关掉通信闪避。
+	// 否则「接了虚拟声卡后声音变小/忽大忽小」，用户会以为是软件压低了音量。
+	let volumeFix = null;
+	if (config.normalizeVolume !== false && deps.vcable.renderId !== null) {
+		volumeFix = await ensureEndpointVolumeFull(deps.vcable.renderId, "CABLE Input");
+	}
+	if (config.disableDucking !== false) {
+		const duckingOff = await disableCommunicationsDucking();
+		if (duckingOff) log("已关闭通信闪避（UserDuckingPreference=0）");
+	}
+	runtime.volumeFix = volumeFix;
 
 	const captureName = config.captureDeviceName ?? deps.vcable.captureName;
 	const rate = 48000;
@@ -1034,6 +1211,10 @@ async function status() {
 		defaultSnapshot: runtime.defaultSnapshot,
 		/** 最近一次停止时的还原结果。 */
 		lastRestore: runtime.lastRestore,
+		/** 音量校正结果（界面展示「已把虚拟声卡音量设为 100%」）。 */
+		volumeFix: runtime.volumeFix ?? null,
+		/** 输出设备是否处于手动锁定（锁定后不自动热切换） */
+		manualOutput: runtime.manualOutputId === true,
 		/** 当前系统默认播放设备是否还指向虚拟声卡（界面对此给出一键还原）。 */
 		defaultIsCable: (() => {
 			try {
@@ -1117,10 +1298,18 @@ const server = createServer(async (req, res) => {
 				if (patch.limiter !== undefined) config.limiter = patch.limiter === true;
 				if (patch.highQuality !== undefined) config.highQuality = patch.highQuality === true;
 				if (patch.bufferMs !== undefined) config.bufferMs = clamp(patch.bufferMs, 50, 2000);
+				if (patch.normalizeVolume !== undefined) config.normalizeVolume = patch.normalizeVolume === true;
+				if (patch.disableDucking !== undefined) config.disableDucking = patch.disableDucking === true;
 				if (patch.outputDeviceId !== undefined) {
 					config.outputDeviceId = patch.outputDeviceId;
 					const found = deps?.render?.find((item) => item.id === patch.outputDeviceId);
 					config.outputDeviceName = found?.name ?? null;
+					// 仅当用户显式关闭「自动切换」时才锁定手动选择；默认仍享受耳机优先的热切换
+					runtime.manualOutputId = patch.autoSwitchOutput === false;
+				}
+				if (patch.autoSwitchOutput !== undefined) {
+					config.autoSwitchOutput = patch.autoSwitchOutput === true;
+					runtime.manualOutputId = config.autoSwitchOutput !== true;
 				}
 				if (patch.autoStart !== undefined) config.autoStart = patch.autoStart === true;
 				if (patch.forceCableDefault !== undefined) config.forceCableDefault = patch.forceCableDefault === true;

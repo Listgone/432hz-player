@@ -1,6 +1,6 @@
 {
   "name": "432hz-player",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "432Hz 播放器：把系统音频实时转成 432Hz（保时长）后送到物理声卡播放。",
   "type": "module",
